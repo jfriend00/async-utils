@@ -1,4 +1,8 @@
 // takes an array of items and a function that returns a promise
+// Calls the function for each item in the array passing two arguments fn(val, index)
+// Resolves to an array of results
+// Stops on first rejection
+
 // First written by me here on Stackoverflow
 // https://stackoverflow.com/questions/46654265/promise-all-consumes-all-my-ram/46654592#46654592
 function mapConcurrent(items, maxConcurrent, fn) {
