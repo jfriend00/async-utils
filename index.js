@@ -1,2 +1,4 @@
 const mapConcurrent = require('./mapConcurrent.js');
-module.exports = { mapConcurrent };
+const Deferred = require('./deferred.js');
+
+module.exports = { mapConcurrent, Deferred };
