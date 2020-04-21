@@ -31,7 +31,7 @@ function mapConcurrent(items, maxConcurrent, fn) {
 
         function run() {
             // launch as many as we're allowed to
-            while (!stop && inflightCntr < maxConcurrent && index < items.length) {
+            while (!stop && inFlightCntr < maxConcurrent && index < items.length) {
                 runNext();
             }
             // if all are done, then resolve parent promise with results
