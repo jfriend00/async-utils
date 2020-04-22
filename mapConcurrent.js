@@ -44,4 +44,4 @@ function mapConcurrent(items, maxConcurrent, fn) {
     });
 }
 
-module.exports = mapConcurrent;
+module.exports = { mapConcurrent };
