@@ -19,4 +19,4 @@ function Deferred() {
     }
 }
 
-module.exports = Deferred;
+module.exports = { Deferred };
