@@ -2,7 +2,7 @@
 module.exports = [
     './mapConcurrent.js',
     './deferred.js',
-    './delay.js',
+    './utils.js',
 ].reduce((obj, file) => {
     const m = require(file);
     Object.assign(obj, m);
