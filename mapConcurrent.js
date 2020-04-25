@@ -65,7 +65,7 @@ function mapConcurrent(iterable, opts, fn) {
             ++inFlightCntr;
 
             function handleError() {
-                if (!otions.continueOnEror) {
+                if (!options.continueOnEror) {
                     // set flag so we don't launch any more requests
                     // as other requests that are currently in flight finish
                     stop = true;
