@@ -62,7 +62,7 @@ function delay(t, val) {
 // promisifyAll implemented using util.promisify
 const promisify = require('util').promisify;
 
-function promisfyObj(obj, suffix = "Async") {
+function promisifyObj(obj, suffix = "Async") {
     const type = typeof obj;
     if (!(type === "function" || type === "object")) {
         throw new Error("first argument to promisifyObj() must be function or object");
