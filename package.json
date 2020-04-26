@@ -1,0 +1,19 @@
+{
+  "name": "async-utils",
+  "version": "1.0.0",
+  "description": "Async utility functions",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jfriend00/async-utils.git"
+  },
+  "author": "John Friend",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jfriend00/async-utils/issues"
+  },
+  "homepage": "https://github.com/jfriend00/async-utils#readme"
+}
