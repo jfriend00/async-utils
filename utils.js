@@ -59,5 +59,36 @@ function delay(t, val) {
    });
 }
 
+// promisifyAll implemented using util.promisify
+const promisify = require('util').promisify;
 
-module.exports = { promiseSettleWithVal, promiseTimeout, promiseAllDone, delay };
+function promisfyObj(obj, suffix = "Async") {
+    const type = typeof obj;
+    if (!(type === "function" || type === "object")) {
+        throw new Error("first argument to promisifyObj() must be function or object");
+    }
+    if (typeof suffix !== "string") {
+        throw new Error("second argument to promisifyObj() must be a string");
+    }
+    Object.getOwnPropertyNames(obj).filter(prop => {
+        // filter out non-function properties
+        return typeof obj[prop] === "function";
+    }).forEach(method => {
+        const asyncName = method + suffix;
+        if (!(asyncName in obj)) {
+            obj[asyncName] = promisify(obj[method]);
+        }
+    });
+    return obj;
+}
+
+function promisifyAll(obj, suffix = "Async") {
+    promisifyObj(obj, suffix);
+    if (typeof obj === "function" && typeof obj.prototype === "object" ) {
+        promisifyObj(obj.prototype, suffix);
+    }
+    return obj;
+}
+
+
+module.exports = { promiseSettleWithVal, promiseTimeout, promiseAllDone, delay, promisifyAll, promisifyObj };
