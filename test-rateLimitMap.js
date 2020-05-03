@@ -12,6 +12,11 @@ function time() {
 }
 
 let server = http.createServer((req, res) => {
+    if (req.url === "/start") {
+        res.end("Started");
+        return;
+    }
+
     let cntr = incomingRequestTimes.length;
     if (cntr === 0) {
         startT = Date.now();
@@ -72,52 +77,62 @@ function makeHttpRequest(url, data) {
     });
 }
 
-// I don't think this diagnostic is working properly, need to fix
 function printStats(duration) {
-    duration *= 1000;
     let maxRequestsPerDuration = 0;
-    let startSequence = 0;
-    for (let i = 1; i < incomingRequestTimes.length; i++) {
-        // go back in the array to see how many requests were in duration
-        let lastTime = incomingRequestTimes[i];
-        let qty = 1;
-        for (let j = i - 1; j >= 0; j--) {
-            if (lastTime - incomingRequestTimes[j] > duration) {
-                if (qty > maxRequestsPerDuration) {
-                    startSequence = j;
-                    maxRequestsPerDuration = qty;
-                }
-                break;
+    let maxStart = 0;
+    for (let i = 0; i < incomingRequestTimes.length; i++) {
+        let startT = incomingRequestTimes[i];
+        let cntr = 1;
+        for (let j = i + 1; j < incomingRequestTimes.length; j++) {
+            if (incomingRequestTimes[j] - startT < duration) {
+                ++cntr;
             } else {
-                ++qty;
+                break;
             }
         }
-    }
-    console.log(`maxRequestsPer ${duration / 1000} sec is ${maxRequestsPerDuration}`);
-    console.log(`    starting at request ${startSequence}`);
-    return ;
-}
-
-function run() {
-
-    let runNumber = -1;
-    if (process.argv.length > 2) {
-        runNumber = +process.argv[2];
-        let data = require('./runTimes.json');
-        if (runNumber < data.length) {
-            sequence = data[runNumber];
+        if (cntr > maxRequestsPerDuration) {
+            maxRequestsPerDuration = cntr;
+            maxStart = i;
         }
     }
+    console.log(`maxRequestsPer ${duration} ms is ${maxRequestsPerDuration}`);
+    console.log(`    starting at request ${maxStart}`);
+    let start;
+    let relativeTimes = incomingRequestTimes.map((val, index) => {
+        if (index === 0) {
+            start = val;
+            return 0;
+        } else {
+            return val - start;
+        }
+    });
+    console.log(relativeTimes);
+}
 
-    // 2 requests per second
-    // rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn)
-    const numRequests = 5;
-    const duration = 1;
-    const max = 10;
-    console.log(`Sending ${numRequests} requests per ${duration} seconds, maxInFlight = ${max}`);
-    rateLimitMap(makeArray(25), max, numRequests, duration, function(i) {
-        return makeHttpRequest(`http://localhost:4000/${i}`, i);
-    }).then(result => {
+async function run() {
+    try {
+        let runNumber = -1;
+        if (process.argv.length > 2) {
+            runNumber = +process.argv[2];
+            let data = require('./runTimes.json');
+            if (runNumber < data.length) {
+                sequence = data[runNumber];
+            }
+        }
+
+        // 2 requests per second
+        // rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn)
+        const requestsPerDuration = 5;
+        const duration = 1000;
+        const maxInFlight = 6;
+
+        // run one request just to make sure the server is fully initiated
+        await makeHttpRequest("http://localhost:4000/start");
+
+        console.log(`Sending ${requestsPerDuration} requests per ${duration} ms, maxInFlight = ${maxInFlight}`);
+        let results = await rateLimitMap(makeArray(25), maxInFlight, requestsPerDuration, duration, function(i) {
+            return makeHttpRequest(`http://localhost:4000/${i}`, i);
+        });
         // if we generated a new sequence, then save it
         if (runNumber === -1) {
             let data = require('./runTimes.json');
@@ -125,11 +140,11 @@ function run() {
             fs.writeFileSync('./runTimes.json', JSON.stringify(data).replace(/\],\[/g, "],\n["));
             console.log(`Saving sequence #${data.length - 1}`);
         }
-        printStats(1);
-        console.log(result);
+        printStats(duration);
+        console.log(results);
+    } catch(e) {
+        console.log(e);
+    } finally {
         server.close();
-
-    }).catch(err => {
-        console.log(err);
-    });
+    }
 }
