@@ -8,13 +8,15 @@
     It must be an integer.  You can get fractional requests per second by setting the
     duration accordingly.  Duration values are in seconds.  For example:
 
+  duration is in milliseconds
+
         requestsPerDuration         duration        requestsPerSec
         --------------------------------------------------------
-        1                           1       =>      1
-        2                           1       =>      2
-        1                           2       =>      0.5
-        1                           3       =>      0.33
-        5                           2       =>      2.5
+        1                           1000       =>      1
+        2                           1000       =>      2
+        1                           2000       =>      0.5
+        1                           3000       =>      0.33
+        5                           2000       =>      2.5
 
    maxInFlight is the maximum number of requests that should be in flight at the same time
       If there is no limit for maxInFlight and the only limit is by time, then pass 0
@@ -42,16 +44,26 @@ function time() {
     return delta.toFixed(3);
 }
 
+let debugOn = process.env["DEBUG_RATE_LIMIT_MAP"] === "1";
+let DBG;
+if (debugOn) {
+    DBG = function(...args) {
+        args.unshift(time() + ": ");
+        console.log(...args);
+    }
+} else {
+    DBG = function() {};
+}
+
 function rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn) {
     return new Promise(function(resolve, reject) {
         if (maxInFlight <= 0) {
             maxInFlight = Number.MAX_SAFE_INTEGER;
         }
-        if (!Number.isInteger(requestsPerDuration) || !Number.isInteger(duration)) {
-            reject(new Error("requestsPerDuration and duration arguments must be integers"));
+        if (!Number.isInteger(requestsPerDuration) || !Number.isInteger(duration) || duration <= 0 || requestsPerDuration <= 0) {
+            reject(new Error("requestsPerDuration and duration arguments must be positive integers"));
             return;
         }
-        duration = (duration * 1000);        // make it millisconds
         let index = 0;              // keep track of where we are in the array
         let inFlightCntr = 0;       // how many requests currently in flight
         let doneCntr = 0;           // how many requests have finished
@@ -75,19 +87,28 @@ function rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn) {
             return cnt;
         }
 
-        function runMore() {
+        function runMore(reason) {
             //console.log(`${time()}: Entering runMore()`);
-            while (!cancel && index < array.length && inFlightCntr < maxInFlight && calcRequestsInLastDuration() < requestsPerDuration) {
+            let rateExceeded = false;
+            // As long as we aren't cancelled, have more items in the array
+            //    and don't have too many inflight already, see about running some more
+            while (!cancel && index < array.length && inFlightCntr < maxInFlight) {
+                // check out rate limit
+                if (calcRequestsInLastDuration() >= requestsPerDuration) {
+                    DBG(`      Rate limited, runMore(${reason})`);
+                    rateExceeded = true;
+                    break;
+                }
                 let i = index++;
                 ++inFlightCntr;
                 launchTimes.push(Date.now());
-                console.log(`${time()}: Launching request ${i + 1} - (${inFlightCntr})`);
+                DBG(`Launching request ${i + 1} - (${inFlightCntr}), runMore(${reason})`);
                 fn(array[i]).then(function(val) {
                     results[i] = val;
                     --inFlightCntr;
                     ++doneCntr;
                     //console.log(`${time()}: Complete request ${i} - (${inFlightCntr})`);
-                    runMore();
+                    runMore(`from completion of request ${i}`);
                 }, function(err) {
                     cancel = true;
                     reject(err);
@@ -95,28 +116,36 @@ function rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn) {
             }
             // see if we're done
             if (doneCntr === array.length) {
+                DBG("Done");
                 resolve(results);
-            } else if (!timer && inFlightCntr < maxInFlight && launchTimes.length >= requestsPerDuration) {
-                // only do this if we don't already have a timer running and
-                //    if we don't already have max requests going.  A completion of a request
-                //    will trigger the next one to go if we already have max requests going
-                // calc how long we have to wait before sending more
-                // if we already have a timer, then we've already calculated that so let that timer keep going
+            } else if (rateExceeded && !timer && launchTimes.length >= requestsPerDuration) {
+                // So, we only get here after the while() loop above has been exhausted
+                //   so it did not run more requests either for one of these reasons:
+                //     1) cancel is set
+                //     2) there are no more left in the array
+                //     3) we already have maxInflight
+                //     4) we've exceeded our rate we can send requests
+                // Only in the case of rate limiting, do we want to set a timer here
+                //   For reasons 1) and 2), we don't ever want to start any more
+                //   For reason 3, we will kick off the next one when a previous one completes
+                //   For reason 4 (rate limiting), we have to schedule when to next run one
+                // And, if we already have a timer set, it's already set for the desired time so
+                //   no need to set another one
+
                 let delta = duration - (Date.now() - launchTimes[launchTimes.length - requestsPerDuration]);
-                if (delta > 0) {
-                    console.log(`${time()}: Setting time to runMore() in ${delta} ms`);
+                if (delta >= 0) {
+                    // set our timer for 1ms past our deadline so we land just past the rate limit
+                    ++delta;
+                    DBG(`      Setting timer to runMore() in ${delta} ms`);
                     timer = setTimeout(() => {
                         timer = null;
                         //console.log(`${time()}: Timer fired, about to runMore()`);
-                        runMore();
+                        runMore(`from timer ${delta}`);
                     }, delta);
                 }
-            } else {
-                // we need to figure out how long to wait
-                // console.log("got here");
             }
         }
-        runMore();
+        runMore("from start");
     });
 }
 
