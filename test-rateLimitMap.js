@@ -122,7 +122,7 @@ async function run() {
 
         // 2 requests per second
         // rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn)
-        const requestsPerDuration = 5;
+        const requestsPerDuration = 2;
         const duration = 1000;
         const maxInFlight = 6;
 
