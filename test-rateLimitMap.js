@@ -122,9 +122,9 @@ async function run() {
 
         // 2 requests per second
         // rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn)
-        const requestsPerDuration = 2;
+        const requestsPerDuration = 30;
         const duration = 1000;
-        const maxInFlight = 6;
+        const maxInFlight = 5;
 
         // run one request just to make sure the server is fully initiated
         await makeHttpRequest("http://localhost:4000/start");
@@ -141,7 +141,8 @@ async function run() {
             console.log(`Saving sequence #${data.length - 1}`);
         }
         printStats(duration);
-        console.log(results);
+        console.log(sequence);
+        //console.log(results);
     } catch(e) {
         console.log(e);
     } finally {
