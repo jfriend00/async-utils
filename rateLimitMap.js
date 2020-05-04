@@ -73,8 +73,7 @@ function rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn) {
         let timer;
 
         // calculate num requests in last duration
-        function calcRequestsInLastDuration() {
-            let now = Date.now();
+        function calcRequestsInLastDuration(now) {
             // look backwards in launchTimes to see how many were launched within the last duration
             let cnt = 0;
             for (let i = launchTimes.length - 1; i >= 0; i--) {
@@ -90,11 +89,13 @@ function rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn) {
         function runMore(reason) {
             //console.log(`${time()}: Entering runMore()`);
             let rateExceeded = false;
+            let now;
             // As long as we aren't cancelled, have more items in the array
             //    and don't have too many inflight already, see about running some more
             while (!cancel && index < array.length && inFlightCntr < maxInFlight) {
                 // check out rate limit
-                if (calcRequestsInLastDuration() >= requestsPerDuration) {
+                now = Date.now();
+                if (calcRequestsInLastDuration(now) >= requestsPerDuration) {
                     DBG(`      Rate limited, runMore(${reason})`);
                     rateExceeded = true;
                     break;
@@ -108,7 +109,7 @@ function rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn) {
                     --inFlightCntr;
                     ++doneCntr;
                     //console.log(`${time()}: Complete request ${i} - (${inFlightCntr})`);
-                    runMore(`from completion of request ${i}`);
+                    runMore(`from completion of request ${i + 1}`);
                 }, function(err) {
                     cancel = true;
                     reject(err);
@@ -132,7 +133,9 @@ function rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn) {
                 // And, if we already have a timer set, it's already set for the desired time so
                 //   no need to set another one
 
-                let delta = duration - (Date.now() - launchTimes[launchTimes.length - requestsPerDuration]);
+                // note, we have to use the same now time used in calcRequestsInLastDuration(now) because
+                //   if any times passes before we get the time again, we may miss setting a timer
+                let delta = duration - (now - launchTimes[launchTimes.length - requestsPerDuration]);
                 if (delta >= 0) {
                     // set our timer for 1ms past our deadline so we land just past the rate limit
                     ++delta;
@@ -142,6 +145,13 @@ function rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn) {
                         //console.log(`${time()}: Timer fired, about to runMore()`);
                         runMore(`from timer ${delta}`);
                     }, delta);
+                } else {
+                    // if for some reason, we were rate limited, but didn't set a timer, try again
+                    // I don't think we can ever get here
+                    DBG(`      Missed timer ${delta} ms`);
+                    setImmediate(() => {
+                        runMore(`missed timer ${delta}`);
+                    });
                 }
             }
         }
