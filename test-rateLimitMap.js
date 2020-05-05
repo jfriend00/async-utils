@@ -112,25 +112,73 @@ function printStats(duration) {
 async function run() {
     try {
         let runNumber = -1;
-        if (process.argv.length > 2) {
-            runNumber = +process.argv[2];
-            let data = require('./runTimes.json');
-            if (runNumber < data.length) {
-                sequence = data[runNumber];
-            }
+        let duration = 1000;
+        let requestsPerDuration = 3;
+        let maxInFlight = 4;
+        let totalToRun = 25;
+        // command line args
+        // node test-rateLimitMap nnn duration=ddd requestsPerDuration=rrr maxInFlight=mmm
+        function processRunNumber(arg) {
+            runNumber = +arg;
         }
 
-        // 2 requests per second
-        // rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn)
-        const requestsPerDuration = 30;
-        const duration = 1000;
-        const maxInFlight = 5;
+        function processDuration(arg, match) {
+            duration = +match[1];
+        }
+
+        function processRequestsPerDuration(arg, match) {
+            requestsPerDuration = +match[1];
+        }
+
+        function processMaxInFlight(arg, match) {
+            maxInFlight = +match[1];
+        }
+
+        function processTotalToRun(arg, match) {
+            totalToRun = +match[1];
+        }
+        
+        const regs = [
+            { regex: /^\d+$/, fn: processRunNumber },
+            { regex: /^duration=(\d+)$/i, fn: processDuration },
+            { regex: /^requestsPerDuration=(\d+)$/i, fn: processRequestsPerDuration },
+            { regex: /^maxInFlight=(\d+)$/i, fn: processMaxInFlight },
+            { regex: /^totalToRun=(\d+)$/i, fn: processTotalToRun },
+        ];
+
+        if (process.argv.length > 2) {
+            let match, arg;
+            for (let i = 2; i < process.argv.length; i++) {
+                arg = process.argv[i];
+                // see if this arg matches any of our regexes
+                let foundMatch = false;
+                for (let item of regs) {
+                    match = arg.match(item.regex);
+                    if (match) {
+                        item.fn(arg, match);
+                        foundMatch = true;
+                        break;
+                    }
+                }
+                if (!foundMatch) {
+                    console.log(`Unknown argument ${arg}`);
+                    process.exit(1);
+                }
+            }
+            if (runNumber !== -1) {
+                let data = require('./runTimes.json');
+                if (runNumber < data.length) {
+                    console.log(`Running sequence #${runNumber}`);
+                    sequence = data[runNumber];
+                }
+            }
+        }
 
         // run one request just to make sure the server is fully initiated
         await makeHttpRequest("http://localhost:4000/start");
 
         console.log(`Sending ${requestsPerDuration} requests per ${duration} ms, maxInFlight = ${maxInFlight}`);
-        let results = await rateLimitMap(makeArray(25), maxInFlight, requestsPerDuration, duration, function(i) {
+        let results = await rateLimitMap(makeArray(totalToRun), maxInFlight, requestsPerDuration, duration, function(i) {
             return makeHttpRequest(`http://localhost:4000/${i}`, i);
         });
         // if we generated a new sequence, then save it
@@ -139,6 +187,8 @@ async function run() {
             data.push(sequence);
             fs.writeFileSync('./runTimes.json', JSON.stringify(data).replace(/\],\[/g, "],\n["));
             console.log(`Saving sequence #${data.length - 1}`);
+        } else {
+            console.log(`Finished sequence #${runNumber}`);
         }
         printStats(duration);
         console.log(sequence);
