@@ -112,10 +112,11 @@ function printStats(duration) {
 async function run() {
     try {
         let runNumber = -1;
-        let duration = 1000;
-        let requestsPerDuration = 3;
-        let maxInFlight = 4;
+        let duration = 0;
+        let requestsPerDuration = 0;
+        let maxInFlight = 0;
         let totalToRun = 25;
+        let minSpacing = 0;
         // command line args
         // node test-rateLimitMap nnn duration=ddd requestsPerDuration=rrr maxInFlight=mmm
         function processRunNumber(arg) {
@@ -137,13 +138,18 @@ async function run() {
         function processTotalToRun(arg, match) {
             totalToRun = +match[1];
         }
-        
+
+        function processMinSpacing(arg, match) {
+            minSpacing = +match[1];
+        }
+
         const regs = [
             { regex: /^\d+$/, fn: processRunNumber },
             { regex: /^duration=(\d+)$/i, fn: processDuration },
             { regex: /^requestsPerDuration=(\d+)$/i, fn: processRequestsPerDuration },
             { regex: /^maxInFlight=(\d+)$/i, fn: processMaxInFlight },
             { regex: /^totalToRun=(\d+)$/i, fn: processTotalToRun },
+            { regex: /^minSpacing=(\d+)$/i, fn: processMinSpacing },
         ];
 
         if (process.argv.length > 2) {
@@ -178,7 +184,9 @@ async function run() {
         await makeHttpRequest("http://localhost:4000/start");
 
         console.log(`Sending ${requestsPerDuration} requests per ${duration} ms, maxInFlight = ${maxInFlight}`);
-        let results = await rateLimitMap(makeArray(totalToRun), maxInFlight, requestsPerDuration, duration, function(i) {
+        // {maxInFlight: 0, requestsPerDuration: 0, duration: 0, minSpacing: 0}
+        let options = {maxInFlight, requestsPerDuration, duration, minSpacing};
+        let results = await rateLimitMap(makeArray(totalToRun), options, function(i) {
             return makeHttpRequest(`http://localhost:4000/${i}`, i);
         });
         // if we generated a new sequence, then save it
