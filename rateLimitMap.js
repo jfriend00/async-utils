@@ -4,21 +4,17 @@
 /*
   array is the array to iterate, passing each on in turn to the fn functoin
 
-  requestsPerDuration is how many requests you can send within a the duration
-    It must be an integer.  You can get fractional requests per second by setting the
-    duration accordingly.  Duration values are in seconds.  For example:
-
   duration is in milliseconds
+    Defines a period of time in which consecutive requests are counted.
 
-        requestsPerDuration         duration        requestsPerSec
-        --------------------------------------------------------
-        1                           1000       =>      1
-        2                           1000       =>      2
-        1                           2000       =>      0.5
-        1                           3000       =>      0.33
-        5                           2000       =>      2.5
+  requestsPerDuration is how many requests you can send within the duration
+    It must be an integer.
 
-   maxInFlight is the maximum number of requests that should be in flight at the same time
+  So, duration and requestsPerDuration go together to define the rate limit.  If you set
+  duration to 3000 and requestsPerDuration to 10, then rateLimitMap() will manage things
+  to not send more than 10 requests within any 3 second period of time
+
+  maxInFlight is the maximum number of requests that should be in flight at the same time
       If there is no limit for maxInFlight and the only limit is by time, then pass 0
 
    fn is the function to call for each value in the array.  The function will be
@@ -60,10 +56,15 @@ function rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn) {
         if (maxInFlight <= 0) {
             maxInFlight = Number.MAX_SAFE_INTEGER;
         }
+        if (typeof fn !== "function") {
+            reject(new Error("fifth parameter must be a callback function that is called for each item in the array"));
+            return;
+        }
         if (!Number.isInteger(requestsPerDuration) || !Number.isInteger(duration) || duration <= 0 || requestsPerDuration <= 0) {
             reject(new Error("requestsPerDuration and duration arguments must be positive integers"));
             return;
         }
+
         let index = 0;              // keep track of where we are in the array
         let inFlightCntr = 0;       // how many requests currently in flight
         let doneCntr = 0;           // how many requests have finished
@@ -79,44 +80,50 @@ function rateLimitMap(array, maxInFlight, requestsPerDuration, duration, fn) {
             //   No more items in the array to process
             //   Too many items inFlight already
             // DBG(`   Begin runMore(${reason})`);
-            while (!cancel && !rateLimitTimer && index < array.length && inFlightCntr < maxInFlight) {
-                // check out rate limit
-                // by looking back at the launchTime of the requestsPerDuration previous
-                if (launchTimes.length >= requestsPerDuration) {
-                    let now = Date.now();
-                    let delta = duration - (now - launchTimes[launchTimes.length - requestsPerDuration]);
-                    // if duration time hasn't passed yet, then we are rated limited
-                    if (delta > 0) {
-                        // set our timer for 1ms past our deadline so we land just past the rate limit
-                        ++delta;
-                        DBG(`      Rate Limited - setting timer for ${delta} ms from runMore(${reason})`);
-                        rateLimitTimer = setTimeout(() => {
-                            rateLimitTimer = null;
-                            //console.log(`${time()}: Timer fired, about to runMore()`);
-                            runMore(`from timer ${delta}`);
-                        }, delta);
-                        break;
+            try {
+                while (!cancel && !rateLimitTimer && index < array.length && inFlightCntr < maxInFlight) {
+                    // check out rate limit
+                    // by looking back at the launchTime of the requestsPerDuration previous
+                    if (launchTimes.length >= requestsPerDuration) {
+                        let now = Date.now();
+                        let delta = duration - (now - launchTimes[launchTimes.length - requestsPerDuration]);
+                        // if duration time hasn't passed yet, then we are rated limited
+                        if (delta > 0) {
+                            // set our timer for 1ms past our deadline so we land just past the rate limit
+                            ++delta;
+                            DBG(`      Rate Limited - setting timer for ${delta} ms from runMore(${reason})`);
+                            rateLimitTimer = setTimeout(() => {
+                                rateLimitTimer = null;
+                                //console.log(`${time()}: Timer fired, about to runMore()`);
+                                runMore(`from timer ${delta}`);
+                            }, delta);
+                            break;
+                        }
                     }
+                    let i = index++;
+                    ++inFlightCntr;
+                    launchTimes.push(Date.now());
+                    DBG(`Launching request ${i + 1} - (${inFlightCntr}), runMore(${reason})`);
+                    fn(array[i]).then(function(val) {
+                        results[i] = val;
+                        --inFlightCntr;
+                        ++doneCntr;
+                        //console.log(`${time()}: Complete request ${i} - (${inFlightCntr})`);
+                        runMore(`from completion of request ${i + 1}`);
+                    }, function(err) {
+                        cancel = true;
+                        reject(err);
+                    });
                 }
-                let i = index++;
-                ++inFlightCntr;
-                launchTimes.push(Date.now());
-                DBG(`Launching request ${i + 1} - (${inFlightCntr}), runMore(${reason})`);
-                fn(array[i]).then(function(val) {
-                    results[i] = val;
-                    --inFlightCntr;
-                    ++doneCntr;
-                    //console.log(`${time()}: Complete request ${i} - (${inFlightCntr})`);
-                    runMore(`from completion of request ${i + 1}`);
-                }, function(err) {
-                    cancel = true;
-                    reject(err);
-                });
-            }
-            // see if we're done
-            if (doneCntr === array.length) {
-                DBG("Done");
-                resolve(results);
+                // see if we're done
+                if (doneCntr === array.length) {
+                    DBG("Done");
+                    resolve(results);
+                }
+            } catch(e) {
+                // this could end up here if fn(array[i]) threw synchronously
+                cancel = true;
+                reject(e);
             }
         }
         runMore("from start");
