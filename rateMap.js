@@ -231,7 +231,7 @@ function rateMap(iterable, options, fn) {
                     }
 
                     // check for minimum spacing
-                    // by looking at luanch time of previous request we sent
+                    // by looking at launch time of previous request we sent
                     if (checkLimit(now, 1, minSpacing, "minSpacing")) {
                         break;
                     }
