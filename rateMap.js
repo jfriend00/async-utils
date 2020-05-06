@@ -100,6 +100,8 @@ if (debugOn) {
     DBG = function() {};
 }
 
+// possible improvement to actually iterate the iterable without converting to an array
+
 function rateMap(iterable, options, fn) {
     return new Promise(function(resolve, reject) {
         const data = {};
@@ -115,12 +117,13 @@ function rateMap(iterable, options, fn) {
         }
         const results = new Array(data.length);
 
+        // Assign options to local variables with defaults
         let {
-            maxInFlight,
-            requestsPerDuration,
-            duration,
-            minSpacing
-        } = Object.assign({maxInFlight: 0, requestsPerDuration: 0, duration: 0, minSpacing: 0}, options);
+            maxInFlight = 0,
+            requestsPerDuration = 0,
+            duration = 0,
+            minSpacing = 0
+        } = options;
 
         if (maxInFlight < 0) {
             throw new Error("maxInFlight cannot be a negative value");
