@@ -1,4 +1,4 @@
-const {rateLimitMap} = require('./rateLimitMap.js');
+const {rateMap} = require('./rateMap.js');
 const http = require('http');
 const fs = require('fs');
 
@@ -118,7 +118,7 @@ async function run() {
         let totalToRun = 25;
         let minSpacing = 0;
         // command line args
-        // node test-rateLimitMap nnn duration=ddd requestsPerDuration=rrr maxInFlight=mmm
+        // node test-rateMap nnn duration=ddd requestsPerDuration=rrr maxInFlight=mmm
         function processRunNumber(arg) {
             runNumber = +arg;
         }
@@ -186,7 +186,7 @@ async function run() {
         console.log(`Sending ${requestsPerDuration} requests per ${duration} ms, maxInFlight = ${maxInFlight}`);
         // {maxInFlight: 0, requestsPerDuration: 0, duration: 0, minSpacing: 0}
         let options = {maxInFlight, requestsPerDuration, duration, minSpacing};
-        let results = await rateLimitMap(makeArray(totalToRun), options, function(i) {
+        let results = await rateMap(makeArray(totalToRun), options, function(i) {
             return makeHttpRequest(`http://localhost:4000/${i}`, i);
         });
         // if we generated a new sequence, then save it

@@ -3,7 +3,7 @@
 Derived from my original answer on Stackoverflow:
 https://stackoverflow.com/questions/36730745/choose-proper-async-method-for-batch-processing-for-max-requests-sec/36736593#36736593
 
-function rateLimitMap(array, options, fn) {
+function rateMap(array, options, fn) {
   array is the array to iterate, passing each on in turn to the fn functoin
 
   options is an object that contains one or more properties to control the asynchronous management
@@ -14,7 +14,7 @@ function rateLimitMap(array, options, fn) {
      that resolves to whatever result value you want
 
      If fn throws synchronously or rejects, all future iteration will be stopped immediately.  The promise that
-       rateLimitMap() returned will be rejected (like Promise.all() does).  Some requests already in flight will
+       rateMap() returned will be rejected (like Promise.all() does).  Some requests already in flight will
        still be running, but no results will be retured.
 
   Returns a promise that resovles to an array of resolved values in order
@@ -38,7 +38,7 @@ function rateLimitMap(array, options, fn) {
     This is optional.  If specified, duration must also be specified.
 
   So, duration and requestsPerDuration go together to define the rate limit.  If you set
-    duration to 3000 and requestsPerDuration to 10, then rateLimitMap() will manage things
+    duration to 3000 and requestsPerDuration to 10, then rateMap() will manage things
     to not send more than 10 requests within any 3 second period of time
 
   If both duration and requestsPerDuration are zero or not present, then there is no rate limiting applied
@@ -96,7 +96,7 @@ if (debugOn) {
     DBG = function() {};
 }
 
-function rateLimitMap(array, options, fn) {
+function rateMap(array, options, fn) {
     return new Promise(function(resolve, reject) {
         let {
             maxInFlight,
@@ -207,4 +207,4 @@ function rateLimitMap(array, options, fn) {
     });
 }
 
-module.exports = { rateLimitMap };
+module.exports = { rateMap };
