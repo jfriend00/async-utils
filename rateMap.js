@@ -4,7 +4,11 @@ Derived from my original answer on Stackoverflow:
 https://stackoverflow.com/questions/36730745/choose-proper-async-method-for-batch-processing-for-max-requests-sec/36736593#36736593
 
 function rateMap(iterable, options, fn) {
-  array is the array to iterate, passing each on in turn to the fn functoin
+  iterable is the data to iterate, passing each one in turn to the fn function.  It can be any finite iterable
+    (anything that Array.from(iterable) can handle)
+  This can be an iterable or a plain number.  If it's a number, then that represents the
+    number of times to call fn(i) with an increasing value each time (starting with 0).  This can be used
+    to call your function N times in a row without having to manufacture an array of numbers.
 
   options is an object that contains one or more properties to control the asynchronous management
     of multiple calls to fn
@@ -98,7 +102,19 @@ if (debugOn) {
 
 function rateMap(iterable, options, fn) {
     return new Promise(function(resolve, reject) {
-        const array = Array.from(iterable);
+        const data = {};
+        if (typeof iterable === "number") {
+            // create a pseudo array
+            data.length = iterable,
+            data.getValue = function(i) { return i;}
+        } else {
+            // proxy the actual array
+            let array = Array.from(iterable);
+            Object.defineProperty(data, 'length', {get: function() {return array.length;}});
+            data.getValue = function(i) {return array[i];};
+        }
+        const results = new Array(data.length);
+
         let {
             maxInFlight,
             requestsPerDuration,
@@ -122,15 +138,13 @@ function rateMap(iterable, options, fn) {
         }
 
         if (typeof fn !== "function") {
-            reject(new Error("fifth parameter must be a callback function that is called for each item in the array"));
-            return;
+            throw new Error("Third parameter must be a callback function that is called for each item in the iterable");
         }
 
         let index = 0;              // keep track of where we are in the array
         let inFlightCntr = 0;       // how many requests currently in flight
         let doneCntr = 0;           // how many requests have finished
         let launchTimes = [];       // when we launched each request
-        let results = new Array(array.length);
         let cancel = false;
         let rateTimer = null;
 
@@ -143,7 +157,7 @@ function rateMap(iterable, options, fn) {
             //   Too many items inFlight already
             // DBG(`   Begin runMore(${reason})`);
             try {
-                while (!cancel && !rateTimer && index < array.length && inFlightCntr < maxInFlight) {
+                while (!cancel && !rateTimer && index < data.length && inFlightCntr < maxInFlight) {
                     // check for rate limiting
                     // by looking back at the launchTime of the requestsPerDuration previous
                     let now = Date.now();
@@ -181,7 +195,7 @@ function rateMap(iterable, options, fn) {
                     ++inFlightCntr;
                     launchTimes.push(Date.now());
                     DBG(`Launching request ${i + 1} - (${inFlightCntr}), runMore(${reason})`);
-                    fn(array[i]).then(function(val) {
+                    fn(data.getValue(i)).then(function(val) {
                         results[i] = val;
                         --inFlightCntr;
                         ++doneCntr;
@@ -193,12 +207,12 @@ function rateMap(iterable, options, fn) {
                     });
                 }
                 // see if we're done
-                if (doneCntr === array.length) {
+                if (doneCntr === data.length) {
                     DBG("Done");
                     resolve(results);
                 }
             } catch(e) {
-                // this could end up here if fn(array[i]) threw synchronously
+                // this could end up here if fn(data.getValue(i)) threw synchronously
                 cancel = true;
                 reject(e);
             }

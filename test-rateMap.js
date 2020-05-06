@@ -33,15 +33,6 @@ let server = http.createServer((req, res) => {
 
 server.listen(4000, run);
 
-function makeArray(n) {
-    let array = [];
-    for (let i = 1; i <= n; i++) {
-        array.push(i);
-    }
-    return array;
-}
-
-
 let sequence = [];
 let sequenceCntr = 0;
 let usePreGeneratedSequence = false;
@@ -106,7 +97,7 @@ function printStats(duration) {
             return val - start;
         }
     });
-    console.log(relativeTimes);
+    console.log("relativeTimes:", relativeTimes);
 }
 
 async function run() {
@@ -186,8 +177,9 @@ async function run() {
         console.log(`Sending ${requestsPerDuration} requests per ${duration} ms, maxInFlight = ${maxInFlight}`);
         // {maxInFlight: 0, requestsPerDuration: 0, duration: 0, minSpacing: 0}
         let options = {maxInFlight, requestsPerDuration, duration, minSpacing};
-        let results = await rateMap(makeArray(totalToRun), options, function(i) {
-            return makeHttpRequest(`http://localhost:4000/${i}`, i);
+        let results = await rateMap(totalToRun, options, function(i) {
+//        let results = await rateMap([2,4,6,8,10,12,14,16], options, function(i) {
+            return makeHttpRequest(`http://localhost:4000/${i}`, i).then(() => i);
         });
         // if we generated a new sequence, then save it
         if (runNumber === -1) {
@@ -198,8 +190,9 @@ async function run() {
         } else {
             console.log(`Finished sequence #${runNumber}`);
         }
+        console.log("Results:", results);
         printStats(duration);
-        console.log(sequence);
+        console.log("Sequence:", sequence);
         //console.log(results);
     } catch(e) {
         console.log(e);
