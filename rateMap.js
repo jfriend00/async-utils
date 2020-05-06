@@ -123,28 +123,28 @@ function proxyIterable(iterable) {
             }
         }
     } else {
-        // proxy the iterable so we have lookahead
+        // proxy the iterable so we have a lookahead method call .isMore()
         const iterator = iterable[Symbol.iterator]();
-        let nextValuePresent = false;
+        // three possible states: "ready", "valueCached", "done"
+        let state = "ready";
         let nextValue;
-        let done = false;
         data.isMore = function() {
-            if (done) return false;
-            if (nextValuePresent) return true;
+            if (state === "done") return false;
+            if (state === "valueCached") return true;
             // call the iterator to get the next value
             // cache it if present
             nextValue = iterator.next();
             if (nextValue.done) {
-                done = true;
+                state = "done";
                 return false;
             } else {
-                nextValuePresent =  true;
+                state = "valueCached";
                 return true;
             }
         }
         data.getNextValue = function() {
             if (data.isMore()) {
-                nextValuePresent = false;
+                state = "ready";
                 return nextValue.value;
             } else {
                 throw new Error("Went off the end of the iterable");
@@ -249,7 +249,7 @@ function rateMap(iterable, options, fn) {
                     resolve(results);
                 }
             } catch(e) {
-                // this could end up here if fn(data.getValue(i)) threw synchronously
+                // this could end up here if fn(data.getNextValue()) threw synchronously
                 cancel = true;
                 reject(e);
             }
