@@ -178,10 +178,6 @@ function rateMap(iterable, options, fn) {
         if (requestsPerDuration === 0) {
             requestsPerDuration = Number.MAX_SAFE_INTEGER;
         }
-        if (duration === 0) {
-            duration = Number.MAX_SAFE_INTEGER;
-        }
-
         if (typeof fn !== "function") {
             throw new Error("Third parameter must be a callback function that is called for each item in the iterable");
         }
