@@ -3,7 +3,7 @@
 Derived from my original answer on Stackoverflow:
 https://stackoverflow.com/questions/36730745/choose-proper-async-method-for-batch-processing-for-max-requests-sec/36736593#36736593
 
-function rateMap(array, options, fn) {
+function rateMap(iterable, options, fn) {
   array is the array to iterate, passing each on in turn to the fn functoin
 
   options is an object that contains one or more properties to control the asynchronous management
@@ -96,8 +96,9 @@ if (debugOn) {
     DBG = function() {};
 }
 
-function rateMap(array, options, fn) {
+function rateMap(iterable, options, fn) {
     return new Promise(function(resolve, reject) {
+        const array = Array.from(iterable);
         let {
             maxInFlight,
             requestsPerDuration,
@@ -131,8 +132,7 @@ function rateMap(array, options, fn) {
         let launchTimes = [];       // when we launched each request
         let results = new Array(array.length);
         let cancel = false;
-        let rateLimitTimer = null;
-        let spacingTimer = null;
+        let rateTimer = null;
 
         function runMore(reason) {
             // Conditions for not running more requests:
@@ -143,7 +143,7 @@ function rateMap(array, options, fn) {
             //   Too many items inFlight already
             // DBG(`   Begin runMore(${reason})`);
             try {
-                while (!cancel && !rateLimitTimer && !spacingTimer && index < array.length && inFlightCntr < maxInFlight) {
+                while (!cancel && !rateTimer && index < array.length && inFlightCntr < maxInFlight) {
                     // check for rate limiting
                     // by looking back at the launchTime of the requestsPerDuration previous
                     let now = Date.now();
@@ -154,8 +154,8 @@ function rateMap(array, options, fn) {
                             // set our timer for 1ms past our deadline so we land just past the rate limit
                             let amount = duration - delta + 1;
                             DBG(`      Rate Limited - setting timer for ${amount} ms from runMore(${reason})`);
-                            rateLimitTimer = setTimeout(() => {
-                                rateLimitTimer = null;
+                            rateTimer = setTimeout(() => {
+                                rateTimer = null;
                                 //console.log(`${time()}: Timer fired, about to runMore()`);
                                 runMore(`from rate limiting timer ${amount}`);
                             }, amount);
@@ -169,8 +169,8 @@ function rateMap(array, options, fn) {
                         if (delta < minSpacing) {
                             let amount = minSpacing - delta;
                             DBG(`      Setting minSpacing timer for ${amount} ms from runMore(${reason})`);
-                            spacingTimer = setTimeout(() => {
-                                spacingTimer = null;
+                            rateTimer = setTimeout(() => {
+                                rateTimer = null;
                                 runMore(`from minSpacing timer ${amount}`);
                             }, amount);
                             break;
