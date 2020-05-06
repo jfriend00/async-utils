@@ -4,9 +4,9 @@ Derived from my original answer on Stackoverflow:
 https://stackoverflow.com/questions/36730745/choose-proper-async-method-for-batch-processing-for-max-requests-sec/36736593#36736593
 
 function rateMap(iterable, options, fn) {
-  iterable is the data to iterate, passing each one in turn to the fn function.  It can be any finite iterable
-    (anything that Array.from(iterable) can handle)
-  This can be an iterable or a plain number.  If it's a number, then that represents the
+  iterable is the data to iterate, passing each one in turn to the fn function.  It can be any finite iterable and can even
+     be a custom, dynamic iterable that you dynamically decide when it's done.
+  Besides an iterable, it can also be a plain number.  If it's a number, then that represents the
     number of times to call fn(i) with an increasing value each time (starting with 0).  This can be used
     to call your function N times in a row without having to manufacture an array of numbers.
 
@@ -124,7 +124,7 @@ function proxyIterable(iterable) {
         }
     } else {
         // proxy the iterable so we have lookahead
-        let iterator = iterable[Symbol.iterator]();
+        const iterator = iterable[Symbol.iterator]();
         let nextValuePresent = false;
         let nextValue;
         let done = false;
