@@ -100,22 +100,53 @@ if (debugOn) {
     DBG = function() {};
 }
 
-// possible improvement to actually iterate the iterable without converting to an array
-
 function rateMap(iterable, options, fn) {
     return new Promise(function(resolve, reject) {
         const data = {};
+        // we use an object with two methods isMore() and getNextValue() to let us
+        // iterate either an iterable or our pseudo iterable
+        // Critically, this also gives us "lookahead" capabilities to know if we're done or not
+        // before fetching the actual next item of data which is not something an iterable normally has
         if (typeof iterable === "number") {
             // create a pseudo array
-            data.length = iterable,
-            data.getValue = function(i) { return i;}
+            data.index = 0;
+            data.length = iterable;
+            data.isMore = function() {
+                return data.index < data.length;
+            }
+            data.getNextValue = function() {
+                if (data.isMore()) {
+                    return data.index++;
+                } else {
+                    throw new Error("Went off the end of the proxy iterable");
+                }
+            }
         } else {
-            // proxy the actual array
-            let array = Array.from(iterable);
-            Object.defineProperty(data, 'length', {get: function() {return array.length;}});
-            data.getValue = function(i) {return array[i];};
+            // proxy the iterable so we have lookahead
+            data.iterator = iterable[Symbol.iterator]();
+            data.nextValuePresent = false;
+            data.isMore = function() {
+                if (data.nextValuePresent) return true;
+                // call the iterator to get the next value
+                // cache it if present
+                data.nextValue = data.iterator.next();
+                if (data.nextValue.done) {
+                    return false;
+                } else {
+                    data.nextValuePresent =  true;
+                    return true;
+                }
+            }
+            data.getNextValue = function() {
+                if (data.isMore()) {
+                    data.nextValuePresent = false;
+                    return data.nextValue.value;
+                } else {
+                    throw new Error("Went off the end of the iterable");
+                }
+            };
         }
-        const results = new Array(data.length);
+        const results = [];
 
         // Assign options to local variables with defaults
         let {
@@ -160,7 +191,7 @@ function rateMap(iterable, options, fn) {
             //   Too many items inFlight already
             // DBG(`   Begin runMore(${reason})`);
             try {
-                while (!cancel && !rateTimer && index < data.length && inFlightCntr < maxInFlight) {
+                while (!cancel && !rateTimer && data.isMore() && inFlightCntr < maxInFlight) {
                     // check for rate limiting
                     // by looking back at the launchTime of the requestsPerDuration previous
                     let now = Date.now();
@@ -198,7 +229,7 @@ function rateMap(iterable, options, fn) {
                     ++inFlightCntr;
                     launchTimes.push(Date.now());
                     DBG(`Launching request ${i + 1} - (${inFlightCntr}), runMore(${reason})`);
-                    fn(data.getValue(i)).then(function(val) {
+                    fn(data.getNextValue()).then(function(val) {
                         results[i] = val;
                         --inFlightCntr;
                         ++doneCntr;
@@ -210,7 +241,7 @@ function rateMap(iterable, options, fn) {
                     });
                 }
                 // see if we're done
-                if (doneCntr === data.length) {
+                if (inFlightCntr === 0 && !data.isMore()) {
                     DBG("Done");
                     resolve(results);
                 }
