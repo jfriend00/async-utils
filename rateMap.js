@@ -11,7 +11,7 @@ function rateMap(iterable, options, fn) {
     to call your function N times in a row without having to manufacture an array of numbers.
 
   options is an object that contains one or more properties to control the asynchronous management
-    of multiple calls to fn
+    of multiple calls to fn (details of the various options below)
 
   fn is the function to call for each value in the array.  The function will be
      passed one argument (the next value from the array) and it must return a promise
@@ -194,6 +194,25 @@ function rateMap(iterable, options, fn) {
         let rateTimer = null;
 
         function runMore(reason) {
+
+            // returns true if we hit a limit and set a timer
+            function checkLimit(now, numRequests, duration, name) {
+                if (launchTimes.length >= numRequests) {
+                    let delta = now - launchTimes[launchTimes.length - numRequests];
+                    if (delta < duration) {
+                        let amount = duration - delta;
+                        DBG(`      Setting ${name} timer for ${amount} ms from runMore(${reason}`);
+                        rateTimer = setTimeout(() => {
+                            rateTimer = null;
+                            //console.log(`${time()}: Timer fired, about to runMore()`);
+                            runMore(`from ${name} timer ${amount}`);
+                        }, amount);
+                        return true;
+                    }
+                }
+                return false;
+            }
+
             // Conditions for not running more requests:
             //   cancel flag is set
             //   rateLimitTimer is running (we're actively rate limited until that timer fires)
@@ -203,37 +222,18 @@ function rateMap(iterable, options, fn) {
             // DBG(`   Begin runMore(${reason})`);
             try {
                 while (!cancel && !rateTimer && data.isMore() && inFlightCntr < maxInFlight) {
+                    let now = Date.now();
+
                     // check for rate limiting
                     // by looking back at the launchTime of the requestsPerDuration previous
-                    let now = Date.now();
-                    if (launchTimes.length >= requestsPerDuration) {
-                        let delta = now - launchTimes[launchTimes.length - requestsPerDuration];
-                        // if duration time hasn't passed yet, then we are rated limited
-                        if (delta < duration) {
-                            // set our timer for 1ms past our deadline so we land just past the rate limit
-                            let amount = duration - delta + 1;
-                            DBG(`      Rate Limited - setting timer for ${amount} ms from runMore(${reason})`);
-                            rateTimer = setTimeout(() => {
-                                rateTimer = null;
-                                //console.log(`${time()}: Timer fired, about to runMore()`);
-                                runMore(`from rate limiting timer ${amount}`);
-                            }, amount);
-                            break;
-                        }
+                    if (checkLimit(now, requestsPerDuration, duration, "rate limiting")) {
+                        break;
                     }
 
                     // check for minimum spacing
-                    if (minSpacing && launchTimes.length) {
-                        let delta = now - launchTimes[launchTimes.length - 1];
-                        if (delta < minSpacing) {
-                            let amount = minSpacing - delta;
-                            DBG(`      Setting minSpacing timer for ${amount} ms from runMore(${reason})`);
-                            rateTimer = setTimeout(() => {
-                                rateTimer = null;
-                                runMore(`from minSpacing timer ${amount}`);
-                            }, amount);
-                            break;
-                        }
+                    // by looking at luanch time of previous request we sent
+                    if (checkLimit(now, 1, minSpacing, "minSpacing")) {
+                        break;
                     }
 
                     let i = index++;
