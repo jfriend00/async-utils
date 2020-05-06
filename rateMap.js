@@ -195,22 +195,15 @@ function rateMap(iterable, options, fn) {
 
         function runMore(reason) {
 
-            // returns true if we hit a limit and set a timer
             function checkLimit(now, numRequests, duration, name) {
+                let result = {name, amount: 0};
                 if (launchTimes.length >= numRequests) {
                     let delta = now - launchTimes[launchTimes.length - numRequests];
                     if (delta < duration) {
-                        let amount = duration - delta;
-                        DBG(`      Setting ${name} timer for ${amount} ms from runMore(${reason}`);
-                        rateTimer = setTimeout(() => {
-                            rateTimer = null;
-                            //console.log(`${time()}: Timer fired, about to runMore()`);
-                            runMore(`from ${name} timer ${amount}`);
-                        }, amount);
-                        return true;
+                        result.amount = duration - delta + 1;
                     }
                 }
-                return false;
+                return result;
             }
 
             // Conditions for not running more requests:
@@ -224,16 +217,19 @@ function rateMap(iterable, options, fn) {
                 while (!cancel && !rateTimer && data.isMore() && inFlightCntr < maxInFlight) {
                     let now = Date.now();
 
-                    // check for rate limiting
-                    // by looking back at the launchTime of the requestsPerDuration previous
-                    if (checkLimit(now, requestsPerDuration, duration, "rate limiting")) {
-                        break;
-                    }
-
-                    // check for minimum spacing
-                    // by looking at launch time of previous request we sent
-                    if (checkLimit(now, 1, minSpacing, "minSpacing")) {
-                        break;
+                    // check for various limits on how soon we can send the next request
+                    // set timer for the max time that we are limited for (to avoid setting one timer, and then another)
+                    const rateLimitAmount = checkLimit(now, requestsPerDuration, duration, "rate limiting");
+                    const minSpacingAmount = checkLimit(now, 1, minSpacing, "minSpacing");
+                    let maxLimit = rateLimitAmount.amount > minSpacingAmount.amount ? rateLimitAmount: minSpacingAmount;
+                    if (maxLimit.amount) {
+                        let {amount, name} = maxLimit;
+                        DBG(`      Setting ${name} timer for ${amount} ms from runMore(${reason})`);
+                        rateTimer = setTimeout(() => {
+                            rateTimer = null;
+                            //console.log(`${time()}: Timer fired, about to runMore()`);
+                            runMore(`from ${name} timer ${amount}`);
+                        }, amount);
                     }
 
                     let i = index++;
