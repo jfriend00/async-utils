@@ -177,7 +177,7 @@ async function run() {
         console.log(`Sending ${requestsPerDuration} requests per ${duration} ms, maxInFlight = ${maxInFlight}`);
         // {maxInFlight: 0, requestsPerDuration: 0, duration: 0, minSpacing: 0}
         let options = {maxInFlight, requestsPerDuration, duration, minSpacing};
-// /        let results = await rateMap(totalToRun, options, function(i) {
+//        let results = await rateMap(totalToRun, options, function(i) {
         let results = await rateMap([2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50], options, function(i) {
             return makeHttpRequest(`http://localhost:4000/${i}`, i).then(() => i);
         });

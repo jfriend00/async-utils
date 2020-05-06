@@ -100,53 +100,64 @@ if (debugOn) {
     DBG = function() {};
 }
 
+// wrap our iterable so we have a look-ahead method call .isMore() that tells us
+// if there's more data in the iterable or not
+function proxyIterable(iterable) {
+    const data = {};
+    // we use an object with two methods isMore() and getNextValue() to let us
+    // iterate either an iterable or our pseudo iterable
+    // Critically, this also gives us "lookahead" capabilities to know if we're done or not
+    // before fetching the actual next item of data which is not something an iterable normally has
+    if (typeof iterable === "number") {
+        // create a virtual array where we create values upon demand
+        let index = 0;
+        let length = iterable;
+        data.isMore = function() {
+            return index < length;
+        }
+        data.getNextValue = function() {
+            if (data.isMore()) {
+                return index++;
+            } else {
+                throw new Error("Went off the end of the proxy iterable");
+            }
+        }
+    } else {
+        // proxy the iterable so we have lookahead
+        let iterator = iterable[Symbol.iterator]();
+        let nextValuePresent = false;
+        let nextValue;
+        let done = false;
+        data.isMore = function() {
+            if (done) return false;
+            if (nextValuePresent) return true;
+            // call the iterator to get the next value
+            // cache it if present
+            nextValue = iterator.next();
+            if (nextValue.done) {
+                done = true;
+                return false;
+            } else {
+                nextValuePresent =  true;
+                return true;
+            }
+        }
+        data.getNextValue = function() {
+            if (data.isMore()) {
+                nextValuePresent = false;
+                return nextValue.value;
+            } else {
+                throw new Error("Went off the end of the iterable");
+            }
+        }
+    }
+    return data;
+}
+
 function rateMap(iterable, options, fn) {
     return new Promise(function(resolve, reject) {
-        const data = {};
-        // we use an object with two methods isMore() and getNextValue() to let us
-        // iterate either an iterable or our pseudo iterable
-        // Critically, this also gives us "lookahead" capabilities to know if we're done or not
-        // before fetching the actual next item of data which is not something an iterable normally has
-        if (typeof iterable === "number") {
-            // create a pseudo array
-            data.index = 0;
-            data.length = iterable;
-            data.isMore = function() {
-                return data.index < data.length;
-            }
-            data.getNextValue = function() {
-                if (data.isMore()) {
-                    return data.index++;
-                } else {
-                    throw new Error("Went off the end of the proxy iterable");
-                }
-            }
-        } else {
-            // proxy the iterable so we have lookahead
-            data.iterator = iterable[Symbol.iterator]();
-            data.nextValuePresent = false;
-            data.isMore = function() {
-                if (data.nextValuePresent) return true;
-                // call the iterator to get the next value
-                // cache it if present
-                data.nextValue = data.iterator.next();
-                if (data.nextValue.done) {
-                    return false;
-                } else {
-                    data.nextValuePresent =  true;
-                    return true;
-                }
-            }
-            data.getNextValue = function() {
-                if (data.isMore()) {
-                    data.nextValuePresent = false;
-                    return data.nextValue.value;
-                } else {
-                    throw new Error("Went off the end of the iterable");
-                }
-            };
-        }
         const results = [];
+        const data = proxyIterable(iterable);
 
         // Assign options to local variables with defaults
         let {
