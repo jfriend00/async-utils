@@ -197,7 +197,7 @@ function rateMap(iterable, options, fn) {
 
             function checkLimit(now, numRequests, duration, name) {
                 let result = {name, amount: 0};
-                if (launchTimes.length >= numRequests) {
+                if (duration && launchTimes.length >= numRequests) {
                     let delta = now - launchTimes[launchTimes.length - numRequests];
                     if (delta < duration) {
                         result.amount = duration - delta + 1;
