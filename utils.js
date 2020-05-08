@@ -32,6 +32,15 @@ function getPeekIterator(iterator) {
         }
         return nextVal;
     }
+
+    newIterator.nextValue = function() {
+        let nextVal = newIterator.next();
+        if (nextVal.done) {
+            throw new Error("No more values");
+        } else {
+            return nextVal.value;
+        }
+    }
     // simple boolean wrapper around .peek()
     // returns true if there's more data, returns false is there's no more data
     newIterator.isMore = function() {
