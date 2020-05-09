@@ -8,9 +8,14 @@ function Deferred() {
     if (!(this instanceof Deferred)) {
         return new Deferred();
     }
-    const p = this.promise = new Promise((resolve, reject) => {
+    const p = new Promise((resolve, reject) => {
         this.resolve = resolve;
         this.reject = reject;
+    });
+    // make the this.promise property a getter so it can't be set
+    Object.defineProperty(this, "promise", {
+        get: () => p,
+        enumerable: true 
     });
     this.then = p.then.bind(p);
     this.catch = p.catch.bind(p);

@@ -68,3 +68,14 @@ fs2.readFilePromise("test.js").then(result => {
 }).catch(err => {
     console.log(err);
 });
+
+
+const { Deferred } = require('./deferred.js');
+let x = new Deferred();
+x.then(val => {
+    console.log('Deferred resolving', val);
+});
+x.promise.then(val => {
+    console.log('From promise, Deferred resolving', val);
+});
+x.resolve('Hi there!');
