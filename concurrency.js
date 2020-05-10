@@ -22,8 +22,8 @@ class ResourceList {
     add(resource) {
         this.resources.push(resource);
 
-        // if someone is waiting for a worker,
-        // pull the oldest worker out of the list and
+        // if someone is waiting for a resource,
+        // pull the oldest resource out of the list and
         // give it to the oldest deferred that is waiting
         while (this.deferredQueue.length && this.resources.length) {
             let d = this.deferredQueue.shift();
