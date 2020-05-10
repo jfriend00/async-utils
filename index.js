@@ -4,6 +4,7 @@ module.exports = [
     './deferred.js',
     './utils.js',
     './rateMap.js',
+    './concurrency.js',
 ].reduce((obj, file) => {
     const m = require(file);
     Object.assign(obj, m);
