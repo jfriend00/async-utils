@@ -226,12 +226,18 @@ function rateMap(iterable, options, fn) {
                             //console.log(`${time()}: Timer fired, about to runMore()`);
                             runMore(`from ${name} timer ${amount}`);
                         }, amount);
+                        break;
                     }
 
                     let i = index++;
                     ++inFlightCntr;
-                    launchTimes.push(Date.now());
                     DBG(`Launching request ${i + 1} - (${inFlightCntr}), runMore(${reason})`);
+                    launchTimes.push(Date.now());
+                    // keep launchTimes from growing indefinitely.
+                    if (launchTimes.length > requestsPerDuration) {
+                        // remove oldest launchTime
+                        launchTimes.shift();
+                    }
                     fn(data.getNextValue()).then(function(val) {
                         results[i] = val;
                         --inFlightCntr;
