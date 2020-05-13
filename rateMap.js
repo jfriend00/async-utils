@@ -217,9 +217,8 @@ function rateMap(iterable, options, fn) {
                     // set timer for the max time that we are limited for (to avoid setting one timer, and then another)
                     const rateLimitAmount = checkLimit(now, requestsPerDuration, duration, "rate limiting");
                     const minSpacingAmount = checkLimit(now, 1, minSpacing, "minSpacing");
-                    let maxLimit = rateLimitAmount.amount > minSpacingAmount.amount ? rateLimitAmount: minSpacingAmount;
-                    if (maxLimit.amount) {
-                        let {amount, name} = maxLimit;
+                    const {amount, name} = rateLimitAmount.amount > minSpacingAmount.amount ? rateLimitAmount: minSpacingAmount;
+                    if (amount) {
                         DBG(`      Setting ${name} timer for ${amount} ms from runMore(${reason})`);
                         rateTimer = setTimeout(() => {
                             rateTimer = null;
