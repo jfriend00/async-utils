@@ -234,7 +234,7 @@ function rateMap(iterable, options, fn) {
                     DBG(`Launching request ${i + 1} - (${inFlightCntr}), runMore(${reason})`);
                     launchTimes.push(Date.now());
                     // keep launchTimes from growing indefinitely.
-                    if (launchTimes.length > requestsPerDuration) {
+                    if (launchTimes.length > Math.max(requestsPerDuration, 1)) {
                         // remove oldest launchTime
                         launchTimes.shift();
                     }
