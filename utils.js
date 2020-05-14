@@ -121,6 +121,16 @@ function delay(t, val) {
    });
 }
 
+function delayErr(t, err) {
+    return delay(t).then(() => {
+        if (!(err instanceof Error)) {
+            throw new Error(err);
+        } else {
+            throw err;
+        }
+    });
+}
+
 // promisifyAll implemented using util.promisify
 const promisify = require('util').promisify;
 
@@ -157,6 +167,7 @@ module.exports = {
     promiseTimeout,
     promiseAllDone,
     delay,
+    delayErr,
     promisifyAll,
     promisifyObj,
     getPeekIterator,
