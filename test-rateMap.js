@@ -40,18 +40,19 @@ let server = http.createServer((req, res) => {
 
     ++requestCntr;
     ++inFlightCntr;
+
+    let thisRequestcntr = requestCntr;
     let now = Date.now();
     let delta = 0;
     if (incomingRequestTimes.length) {
         delta = now - incomingRequestTimes[incomingRequestTimes.length - 1];
     }
-    DBG(`Incoming server request ${requestCntr} - (${inFlightCntr}), ${delta}ms since prev request`);
+    DBG(`Incoming server request ${thisRequestcntr} - (${inFlightCntr}), ${delta}ms since prev request`);
     let r = rand(100, 4000);
-    //console.log(`${cntr}: ${time()}, Will wait ${r}, Received request: ${req.url}`);
     incomingRequestTimes.push(now);
 
     setTimeout(() => {
-        //console.log(`  ${cntr}: ${time()}: Sending response`);
+        DBG(`    Finishing server request ${thisRequestcntr} - (${inFlightCntr})`);
         --inFlightCntr;
         res.end("Got it");
     }, r);

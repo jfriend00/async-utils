@@ -152,7 +152,6 @@ function promisifyAll(obj, suffix = "Async") {
     return obj;
 }
 
-
 module.exports = {
     promiseSettleWithVal,
     promiseTimeout,

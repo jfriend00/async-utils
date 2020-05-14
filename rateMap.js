@@ -101,6 +101,7 @@ function DBG(...args) {
 
 // wrap our iterable so we have a look-ahead method call .isMore() that tells us
 // if there's more data in the iterable or not
+// This will also make a virtual iterable if you just pass it a number
 function proxyIterable(iterable) {
     const data = {};
     // we use an object with two methods isMore() and getNextValue() to let us
