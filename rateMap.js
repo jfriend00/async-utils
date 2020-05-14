@@ -89,15 +89,14 @@ function time() {
     return delta.toFixed(3);
 }
 
-let debugOn = process.env["DEBUG_RATE_LIMIT_MAP"] === "1";
-let DBG;
-if (debugOn) {
-    DBG = function(...args) {
+// environment variable that turns debug tracing on
+let debugOn = process.env["DEBUG_RATE_MAP"] === "1";
+
+function DBG(...args) {
+    if (debugOn) {
         args.unshift(time() + ": ");
         console.log(...args);
     }
-} else {
-    DBG = function() {};
 }
 
 // wrap our iterable so we have a look-ahead method call .isMore() that tells us
@@ -182,15 +181,16 @@ function rateMap(iterable, options, fn) {
             throw new Error("Third parameter must be a callback function that is called for each item in the iterable");
         }
 
-        let index = 0;              // keep track of where we are in the array
+        let index = 0;              // counter just used for debugging output
         let inFlightCntr = 0;       // how many requests currently in flight
         let doneCntr = 0;           // how many requests have finished
-        let launchTimes = [];       // when we launched each request
-        let cancel = false;
-        let rateTimer = null;
+        let cancel = false;         // have we stopped further processing
+        let rateTimer = null;       // wait timer in operation
+        const launchTimes = [];     // when we launched each request
 
         function runMore(reason) {
 
+            // see if we have hit this limit and if so, how much more time we have to wait
             function checkLimit(now, numRequests, duration, name) {
                 let result = {name, amount: 0};
                 if (duration && launchTimes.length >= numRequests) {
@@ -208,7 +208,7 @@ function rateMap(iterable, options, fn) {
             //   spacingTimer is running (too soon after the last request)
             //   No more items in the array to process
             //   Too many items inFlight already
-            // DBG(`   Begin runMore(${reason})`);
+            // if (debugOn) DBG(`   Begin runMore(${reason})`);
             try {
                 while (!cancel && !rateTimer && data.isMore() && inFlightCntr < maxInFlight) {
                     let now = Date.now();
@@ -219,7 +219,7 @@ function rateMap(iterable, options, fn) {
                     const minSpacingAmount = checkLimit(now, 1, minSpacing, "minSpacing");
                     const {amount, name} = rateLimitAmount.amount > minSpacingAmount.amount ? rateLimitAmount: minSpacingAmount;
                     if (amount) {
-                        DBG(`      Setting ${name} timer for ${amount} ms from runMore(${reason})`);
+                        if (debugOn) DBG(`      Setting ${name} timer for ${amount} ms from runMore(${reason})`);
                         rateTimer = setTimeout(() => {
                             rateTimer = null;
                             //console.log(`${time()}: Timer fired, about to runMore()`);
@@ -230,7 +230,7 @@ function rateMap(iterable, options, fn) {
 
                     let i = index++;
                     ++inFlightCntr;
-                    DBG(`Launching request ${i + 1} - (${inFlightCntr}), runMore(${reason})`);
+                    if (debugOn) DBG(`Launching request ${i + 1} - (${inFlightCntr}), runMore(${reason})`);
                     launchTimes.push(Date.now());
                     // keep launchTimes from growing indefinitely.
                     if (launchTimes.length > Math.max(requestsPerDuration, 1)) {
