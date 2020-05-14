@@ -36,6 +36,7 @@ function DBG(...args) {
         maxTime                 - max time in ms to continuing doing retries.  If both maxTries and maxTime
                                     are specified, then the first limit to be reached will be observed
         functionTimeout         - max time to wait for fn() promise to resolve/reject (default infinite)
+        includeRetryData        - add retryData property to a returns error object (default true)
 
         testRejection           - callback function that, if present, is called to test a rejected promise
                                     It is called with the rejection as testRejection(reasons)
@@ -71,6 +72,7 @@ function promiseRetry(fn, options = {}) {
         backoffFactor = 30,
         maxTime = 0,
         functionTimeout = 0,
+        includeRetryData = true,
         testRejection = (e) => null,
         testResolve = (val) => val,
     } = options;
@@ -88,12 +90,13 @@ function promiseRetry(fn, options = {}) {
     function error(reason) {
         const data = {
             retries: retryCntr,
-            firstError: firstError,
             elapsedTime: Date.now() - startTime,
             reason: reason
         };
         let e = typeof firstError === "object" ? firstError : new Error("timeout");
-        e.retryData = data;
+        if (includeRetryData) {
+            e.retryData = data;
+        }
         return Promise.reject(e);
     }
 
@@ -105,7 +108,7 @@ function promiseRetry(fn, options = {}) {
         }
         ++retryCntr;
 
-        if (retryCntr > intervalsBeforeBackoff) {
+        if (retryCntr > intervalsBeforeBackoff && backoffFactor) {
             // increase currentInterval by backoffFactor
             let newInterval = Math.round(currentInterval * ((100 + backoffFactor) / 100));
             if (maxInterval) {
@@ -119,7 +122,7 @@ function promiseRetry(fn, options = {}) {
         // if setting this interval would take us past maxTime, then no point
         if (maxTime && Date.now() + currentInterval - startTime > maxTime) {
             DBG(`Next retry interval would exceed maxTime of ${maxTime}`);
-            return error('maxTime would be exceeded on next retry');
+            return error('maxTime would be exceeded waiting for next retry');
         }
         DBG(`Waiting ${currentInterval} for next retry`);
         return delay(currentInterval);
