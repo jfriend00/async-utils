@@ -5,6 +5,7 @@ module.exports = [
     './utils.js',
     './rateMap.js',
     './concurrency.js',
+    './retry.js',
 ].reduce((obj, file) => {
     const m = require(file);
     Object.assign(obj, m);
