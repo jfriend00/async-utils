@@ -7,9 +7,25 @@ let incomingRequestTimes = [];
 let startT;
 
 function time() {
+    if (!startT) {
+        startT = Date.now();
+    }
     let delta = (Date.now() - startT) / 1000;
     return delta.toFixed(3);
 }
+
+// environment variable that turns debug tracing on
+let debugOn = process.env["DEBUG_RATE_MAP_SERVER"] === "1";
+
+function DBG(...args) {
+    if (debugOn) {
+        args.unshift(time() + ": ");
+        console.log(...args);
+    }
+}
+
+let requestCntr = 0;
+let inFlightCntr = 0;
 
 let server = http.createServer((req, res) => {
     if (req.url === "/start") {
@@ -21,12 +37,22 @@ let server = http.createServer((req, res) => {
     if (cntr === 0) {
         startT = Date.now();
     }
+
+    ++requestCntr;
+    ++inFlightCntr;
+    let now = Date.now();
+    let delta = 0;
+    if (incomingRequestTimes.length) {
+        delta = now - incomingRequestTimes[incomingRequestTimes.length - 1];
+    }
+    DBG(`Incoming server request ${requestCntr} - (${inFlightCntr}), ${delta}ms since prev request`);
     let r = rand(100, 4000);
     //console.log(`${cntr}: ${time()}, Will wait ${r}, Received request: ${req.url}`);
-    incomingRequestTimes.push(Date.now());
+    incomingRequestTimes.push(now);
 
     setTimeout(() => {
         //console.log(`  ${cntr}: ${time()}: Sending response`);
+        --inFlightCntr;
         res.end("Got it");
     }, r);
 });
