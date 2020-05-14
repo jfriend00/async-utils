@@ -15,14 +15,15 @@ function rejectNTimes(n, t = 0) {
 
 promiseRetry(rejectNTimes(5, 20), {
     startInterval: 100,
-    maxInterval: 3000,
-    maxTries: 100,
+    maxInterval: 1000,
+    maxTries: 3,
     intervalsBeforeBackoff: 1,
     backoffFactor: 50,
-    maxTime: 15000,
+    maxTime: 500,
     functionTimeout: 100,
+    includeRetryData: true,
     testRejection: (e) => { return null;},
-    testResolve: (val) => { return null;},
+    testResolve: (val) => { return val;},
 }).then(result => {
     console.log(result);
 }).catch(err => {
