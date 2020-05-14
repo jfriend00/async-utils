@@ -80,6 +80,10 @@ function promiseRetry(fn, options = {}) {
     let currentInterval = startInterval;
     let startTime = Date.now();
 
+    if (maxInterval && maxInterval < startInterval) {
+        return Promise.reject(new Error('maxInterval (if specified) must be greater than startInterval'));
+    }
+
     // create an error object with retry data in it
     function error(reason) {
         const data = {
@@ -95,11 +99,12 @@ function promiseRetry(fn, options = {}) {
 
     // here's where the retry timing logic is implemented
     function nextDelay() {
-        ++retryCntr;
-        if (retryCntr > maxTries) {
+        if (maxTries && retryCntr >= maxTries) {
             DBG(`Exceeded maxTries of ${maxTries}`)
             return error('maxTries exceeded');
         }
+        ++retryCntr;
+
         if (retryCntr > intervalsBeforeBackoff) {
             // increase currentInterval by backoffFactor
             let newInterval = Math.round(currentInterval * ((100 + backoffFactor) / 100));
@@ -134,6 +139,7 @@ function promiseRetry(fn, options = {}) {
             }
             return nextDelay().then(runAgain);
         } catch(e) {
+            //DBG(`Got rejection with ${e.message}`);
             if (!firstError) {
                 firstError = e;
             }
@@ -149,7 +155,7 @@ function promiseRetry(fn, options = {}) {
 
 // get a wrapped function with prepackaged options
 // keeps you from having to repeat the same set of options over and over
-promiseRetry.get(defaults) {
+promiseRetry.get = function(defaults) {
     return function(fn, options = {}) {
         return promiseRetry(fn, Object.assign(defaults, options));
     }
