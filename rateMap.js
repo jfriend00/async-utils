@@ -264,4 +264,51 @@ function rateMap(iterable, options, fn) {
     });
 }
 
-module.exports = { rateMap };
+/*
+    Iterate asynchronously, one after another.  Call the next one only when the prior one finishes
+    Resolves to an array of results
+    If you want any rate limiting features, use rateMap() with maxInFlight: 1 and any other rate
+    limiting features you want
+*/
+
+function mapSeries(iterable, fn) {
+    return rateMap(iterable, {maxInFlight: 1}, fn);
+}
+
+/*
+    Pass:
+        functionArray
+            an array of functions to be called sequentially
+            functions can be a mix of asynchronous and synchronous or all asynchronous
+        options (optional)
+            regular rate limiter options object
+            which will be forced to be maxInFlight: 1 for sequential run
+            you can add other rate limiting options if you need to
+         seedValue
+            value to be passed to the first function
+
+     Resolved value from prior function is passed to the next function in the array
+     Resolved value from rateReduce() is the resolved value from the last function called
+*/
+
+function rateReduce(functionArray, options, seedValue) {
+    // if only two arguments, then treat 2nd argument as seedValue
+    // and create an empty options object (for default options)
+    if (seedValue === undefined) {
+        seedValue = options;
+        options = {};
+    }
+    // make copy of options object and force maxInFlight to 1
+    const opts = Object.assign({}, options, {maxInFlight: 1});
+    let lastValue = seedValue;
+    return rateMap(functionArray, opts, async function(fn) {
+        let newValue = await fn(lastValue);
+        lastValue = newValue;
+        return newValue;
+    }).then(results => {
+        // we resolve to just the lastValue
+        return lastValue;
+    });
+}
+
+module.exports = { rateMap, mapSeries, rateReduce };
