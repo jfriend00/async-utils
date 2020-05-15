@@ -43,3 +43,5 @@ class ResourceList {
         }
     }
 }
+
+module.exports = { ResourceList };
