@@ -58,7 +58,9 @@ function DBG(...args) {
         The default testResolve() stops on any resolved promise.
 
         A typical use case for testResolve() would be if you get timeout responses from an http server
-        such as 408 (Request Timeout) or 504 (Gateway Timeout) response from the server
+        such as 408 (Request Timeout) or 504 (Gateway Timeout) response from the server and though
+        those are not rejections for some http libraries (since a response was returned from the
+        server), you still want to retry them.
 
 */
 
