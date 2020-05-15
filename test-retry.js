@@ -13,13 +13,13 @@ function rejectNTimes(n, t = 0) {
     }
 }
 
-promiseRetry(rejectNTimes(5, 20), {
+promiseRetry(rejectNTimes(1000, 20), {
     startInterval: 100,
-    maxInterval: 1000,
-    maxTries: 3,
+    maxInterval: 100000,
+    maxTries: 1000,
     intervalsBeforeBackoff: 1,
     backoffFactor: 50,
-    maxTime: 500,
+    maxTime: 150000,
     functionTimeout: 100,
     includeRetryData: true,
     testRejection: (e) => { return null;},
