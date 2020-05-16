@@ -1,4 +1,4 @@
-const {delay, promiseTimeout} = require('./utils');
+const {delay, timeout} = require('./utils');
 
 let startT;
 
@@ -60,7 +60,7 @@ function DBG(...args) {
 
 */
 
-function promiseRetry(fn, options = {}) {
+function retry(fn, options = {}) {
     // load options with defaults
     let {
         startInterval = 1000,
@@ -164,12 +164,104 @@ function promiseRetry(fn, options = {}) {
 
 // get a wrapped function with prepackaged options
 // keeps you from having to repeat the same set of options over and over
-promiseRetry.get = function(defaults) {
+retry.makeNewRetry = function(defaults) {
     return function(fn, options = {}) {
-        return promiseRetry(fn, Object.assign(defaults, options));
+        return retry(fn, Object.assign(defaults, options));
     }
 }
 
+/*
+    retry.fs(fn, options)
+
+    special version of retry() that looks for specific file system errors and retries them,
+    but errors out (without retry) on other errors
+
+    The specific errors it looks for are the sme ones that fs.rmdir() looks for when using the recursive flag
+    EBUSY, EMFILE, ENFILE, ENOTEMPTY, or EPERM
+
+    All retry() options are supports except for testRejection because that's overriden to look for
+    these specific errors
+
+    This uses a few different defaults that are appropriate for file sytem operations:
+      startInterval: 50
+      maxTries: 5
+    But, these are overridable if you pass your own options for them.
+*/
+
+const fsRetryCodes = new Set(['EBUSY', 'EMFILE', 'ENFILE', 'ENOTEMPTY', 'EPERM']);
+
+retry.fs = function(fn, options = {}) {
+    let opts = Object.assign({startInterval: 50, maxTries: 5}, options);
+    // forcefully override the testRejection option
+    opts.testRejection = function(e) {
+        if (e.code && fsRetryCodes.has(e.code)) {
+            return {action: 'retry'};
+        } else {
+            return {action: 'reject', value: e};
+        }
+    }
+    return retry(fn, opts);
+}
+
+/*
+
+Note for future http-related pre-built retry options (info from retry options in got() library)
+retry statusCodes: 408 413 429 500 502 503 504 521 522 524
+retry errorCodes:  ETIMEDOUT ECONNRESET EADDRINUSE ECONNREFUSED EPIPE ENOTFOUND ENETUNREACH EAI_AGAIN
+
+*/
 
 
-module.exports = { promiseRetry };
+
+/*
+    retryify adds retry behavior to any function
+        returns a new function that has the retry behavior
+
+    retryFn is the retry function
+        defaults to the regular retry function and its defaults
+        can also be set to retry.fs which has much shorter defaults
+        or can be set to any retry function you make with retry.makeNewRetry()
+
+    options is which options you want for the retry
+*/
+function retryify(fn, retryFn = retry, options = {}) {
+    // check which args were passed
+    if (typeof retryFn !== "function") {
+        options = retryFn;
+        whichRetry = retry;
+    }
+    return function(...args) {
+        return retryFn(function() {
+            return fn(...args);
+        });
+    }
+}
+
+/*
+    retryifyAll creates and returns a new object that has retry versions of all
+    functions attached to the object you pass it.
+
+    This does not modify the object you passed in.  It does bind the newly created
+    methods to the original object so "this" will be set to the original object
+    when they are called.
+*/
+const retryifyCache = new WeakMap();
+
+function retryifyAll(obj, retryFn = retry, options = {}) {
+    // see if we already have a cached version of this object so multiple modules
+    // don't keep making new copies
+    let retryObj = retryifyCache.get(obj);
+    if (retryObj) return retryObj;
+
+    retryObj = {};
+    Object.getOwnPropertyNames(obj).forEach(prop => {
+        if (typeof obj[prop] === "function") {
+            retryObj[prop] = retryify(obj[prop].bind(obj), retryFn, options);
+        }
+    });
+    // cache this object
+    retryifyCache.set(obj, retryObj);
+    return retryObj;
+}
+
+module.exports = { retry, retryify, retryifyAll, retryifyCache };
