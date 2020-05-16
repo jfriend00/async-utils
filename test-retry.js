@@ -3,7 +3,7 @@ const { delay, delayErr } = require('./utils.js')
 
 function rejectNTimes(n, t = 0) {
     let cntr = 0;
-    return function() {
+    return function(...args) {
         ++cntr;
         if (cntr <= n) {
             return delayErr(t, "simulated error");
@@ -22,6 +22,7 @@ promiseRetry(rejectNTimes(1000, 20), {
     maxTime: 150000,
     functionTimeout: 100,
     includeRetryData: true,
+    args: [1,2],
     testRejection: (e) => ({action: "retry"}),
     testResolve: (val) => ({action: "resolve", value: val}),
 }).then(result => {

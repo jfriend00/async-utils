@@ -38,6 +38,9 @@ function DBG(...args) {
         functionTimeout         - max time to wait for fn() promise to resolve/reject (default infinite)
         includeRetryData        - add retryData property to a returns error object (default true)
 
+        args                    - array of arguments [arg1, arg2, arg3] to be passed to fn
+                                    as fn(arg1, arg2, arg3) - default is no arguments
+
         testRejection           - callback function that, if present, is called to test a rejected promise
         testResolve             - callback function that, if present, is called to test a resolved promise
               Both these callbacks (if present) must return an object with these properties:
@@ -66,6 +69,7 @@ function promiseRetry(fn, options = {}) {
         maxTime = 0,
         functionTimeout = 0,
         includeRetryData = true,
+        args = [],
         testRejection = (e) => ({action: 'retry'}),                // default is to retry all rejections
         testResolve = (val) => ({action: 'resolve', value: val}),  // default is to resolve
     } = options;
@@ -140,9 +144,9 @@ function promiseRetry(fn, options = {}) {
         try {
             let val;
             if (functionTimeout) {
-                val = await promiseTimeout(fn(), functionTimeout, new Error("function timeout"));
+                val = await promiseTimeout(fn(...args), functionTimeout, new Error("function timeout"));
             } else {
-                val = await fn();
+                val = await fn(...args);
             }
             return processCallback(testResolve, val, 'testResolve');
         } catch(e) {
