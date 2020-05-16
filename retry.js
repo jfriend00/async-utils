@@ -122,6 +122,20 @@ function promiseRetry(fn, options = {}) {
     }
 
     async function runAgain() {
+
+        function processCallback(testResult, name) {
+            switch(testResult.action) {
+                case "reject":
+                    return Promise.reject(testResult.value);
+                case "resolve":
+                    return testResult.value;
+                case "retry":
+                    return nextDelay().then(runAgain);
+                case "default":
+                    return Promise.reject(new Error(`Invalid return value from ${name} callback`));
+            }
+        }
+
         try {
             let val;
             if (functionTimeout) {
@@ -130,33 +144,14 @@ function promiseRetry(fn, options = {}) {
                 val = await fn();
             }
             let testResult = await testResolve(val);
-            switch(testResult.action) {
-                case "reject":
-                    throw testResult.value;
-                case "resolve":
-                    return testResult.value;
-                case "retry":
-                    return nextDelay().then(runAgain);
-                    break;
-                case "default":
-                    throw new Error("Invalid return value from testResult callback")
-            }
+            return processCallback(testResult, 'testResolve');
         } catch(e) {
             //DBG(`Got rejection with ${e.message}`);
             if (!firstError) {
                 firstError = e;
             }
             let testResult = await testRejection(e);
-            switch(testResult.action) {
-                case "reject":
-                    throw testResult.value;
-                case "resolve":
-                    return testResult.value;
-                case "retry":
-                    return nextDelay().then(runAgain);
-                case "default":
-                    throw new Error("Invalid return value from testRejection callback")
-            }
+            return processCallback(testResult, 'testRejection');
         }
     }
     return runAgain();
