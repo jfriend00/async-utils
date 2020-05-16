@@ -65,7 +65,7 @@ function getDefaultPeekIterator(iterable) {
 // It differs from Promise.allSettled() in two ways.  First, it will reject if any promises
 //    reject whereas Promise.allSettled() never rejects.  Second, when it resolves, it
 //    resolves to a simple array of results, not an arrray of objects.
-function promiseAllDone(promises) {
+function allDone(promises) {
     return Promise.allSettled(promises).then(results => {
         return results.map(r => {
             if (r.status === 'rejected') {
@@ -81,7 +81,7 @@ function promiseAllDone(promises) {
 // the status in it, the array is just the resolved values with a sentinel errorVal
 // in place of the errors (often null)
 // returns promise that resolves to an array
-function promiseSettleWithVal(promises, errorVal = null) {
+function settleWithVal(promises, errorVal = null) {
     return Promise.allSettled(promises).then(results => {
         return results.map(result => {
             return result.status === 'fulfilled' ? result.value : errorVal;
@@ -95,7 +95,7 @@ function promiseSettleWithVal(promises, errorVal = null) {
 // promiseTimeout(promise, timeMs, [error object])
 // If error object not passed, then new Error("Timeout"); will be used
 // Returns promise
-function promiseTimeout(p, t, e) {
+function timeout(p, t, e) {
     let timer;
     const pTimeout = new Promise((resolve, reject) => {
         timer = setTimeout(() => {
@@ -163,9 +163,9 @@ function promisifyAll(obj, suffix = "Async") {
 }
 
 module.exports = {
-    promiseSettleWithVal,
-    promiseTimeout,
-    promiseAllDone,
+    settleWithVal,
+    timeout,
+    allDone,
     delay,
     delayErr,
     promisifyAll,

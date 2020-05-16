@@ -1,7 +1,7 @@
 const {
-    promiseSettleWithVal,
-    promiseTimeout,
-    promiseAllDone,
+    settleWithVal,
+    timeout,
+    allDone,
     delay,
     promisifyAll,
     promisifyObj,
@@ -31,23 +31,23 @@ function testDelay() {
 
 testDelay();
 
-function testPromiseTimeout() {
-    return promiseTimeout(delay(2000, "Hello"), 100, new Error("My Timeout"));
+function testTimeout() {
+    return timeout(delay(2000, "Hello"), 100, new Error("My Timeout"));
 }
 
-testPromiseTimeout().then(result => {
+timeout().then(result => {
     console.log(result);
 }).catch(err => {
     console.log(err);
 });
 
-promiseSettleWithVal([testPromiseTimeout(), delay(200, "Hi")]).then(results => {
+settleWithVal([testTimeout(), delay(200, "Hi")]).then(results => {
     console.log(results);
 }).catch(err => {
     console.log(err);
 });
 
-promiseAllDone([testPromiseTimeout(), delay(5000, "Hi")]).then(results => {
+allDone([testTimeout(), delay(5000, "Hi")]).then(results => {
     console.log(results);
 }).catch(err => {
     console.log(err);
