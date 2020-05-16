@@ -22,8 +22,8 @@ promiseRetry(rejectNTimes(1000, 20), {
     maxTime: 150000,
     functionTimeout: 100,
     includeRetryData: true,
-    testRejection: (e) => { return null;},
-    testResolve: (val) => { return val;},
+    testRejection: (e) => ({action: "retry"}),
+    testResolve: (val) => ({action: "resolve", value: val}),
 }).then(result => {
     console.log(result);
 }).catch(err => {

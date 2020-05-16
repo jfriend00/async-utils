@@ -39,20 +39,11 @@ function DBG(...args) {
         includeRetryData        - add retryData property to a returns error object (default true)
 
         testRejection           - callback function that, if present, is called to test a rejected promise
-                                    It is called with the rejection as testRejection(reasons)
-                                    Two possible return values:
-                                        null - means to continue retrying this
-                                        any other return value means to abort with that as the error
         testResolve             - callback function that, if present, is called to test a resolved promise
-                                    Possible return values:
-                                        null - means to continue retrying this (haven't gotten the
-                                               desired answer yet)
-                                        any other value means to resolve with this value
-
-        Note that a couple of possible cases are not covered by the callbacks.  If you want to resolve when
-        you encounter certain errors, then you can use your own fn.catch() to turn an error into a resolve.
-        If you want to reject on certain resolved promises, then use your own fn.then() and turn certain
-        resolutions into rejections yourself.
+              Both these callbacks (if present) must return an object with these properties:
+                  {action: 'resolve', value: val}     resolve with the included val
+                  {action: 'reject', value: val}      reject with the val as the reason
+                  {action: 'retry'}                   retry (value properties is not used)
 
         The default testRejection() retries any rejection.
         The default testResolve() stops on any resolved promise.
@@ -75,8 +66,8 @@ function promiseRetry(fn, options = {}) {
         maxTime = 0,
         functionTimeout = 0,
         includeRetryData = true,
-        testRejection = (e) => null,
-        testResolve = (val) => val,
+        testRejection = (e) => ({action: 'retry'}),                // default is to retry all rejections
+        testResolve = (val) => ({action: 'resolve', value: val}),  // default is to resolve
     } = options;
 
     let retryCntr = 0;
@@ -138,21 +129,34 @@ function promiseRetry(fn, options = {}) {
             } else {
                 val = await fn();
             }
-            let newVal = await testResolve(val);
-            if (newVal !== null) {
-                return newVal;
+            let testResult = await testResolve(val);
+            switch(testResult.action) {
+                case "reject":
+                    throw testResult.value;
+                case "resolve":
+                    return testResult.value;
+                case "retry":
+                    return nextDelay().then(runAgain);
+                    break;
+                case "default":
+                    throw new Error("Invalid return value from testResult callback")
             }
-            return nextDelay().then(runAgain);
         } catch(e) {
             //DBG(`Got rejection with ${e.message}`);
             if (!firstError) {
                 firstError = e;
             }
             let testResult = await testRejection(e);
-            if (testResult !== null) {
-                throw testResult;
+            switch(testResult.action) {
+                case "reject":
+                    throw testResult.value;
+                case "resolve":
+                    return testResult.value;
+                case "retry":
+                    return nextDelay().then(runAgain);
+                case "default":
+                    throw new Error("Invalid return value from testRejection callback")
             }
-            return nextDelay().then(runAgain);
         }
     }
     return runAgain();
@@ -165,5 +169,7 @@ promiseRetry.get = function(defaults) {
         return promiseRetry(fn, Object.assign(defaults, options));
     }
 }
+
+
 
 module.exports = { promiseRetry };
