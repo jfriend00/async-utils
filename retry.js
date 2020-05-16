@@ -25,6 +25,8 @@ function DBG(...args) {
     fn is a function to call with retry until it resolves and until
         limits specified in the options object are encountered
 
+    All options below are optional
+
     options
         startInterval           - how often to retry initially in ms (default 1000)
         maxInterval             - longest the interval can go with backoff (default is no limit)
@@ -36,10 +38,10 @@ function DBG(...args) {
         maxTime                 - max time in ms to continuing doing retries.  If both maxTries and maxTime
                                     are specified, then the first limit to be reached will be observed
         functionTimeout         - max time to wait for fn() promise to resolve/reject (default infinite)
-        includeRetryData        - add retryData property to a returns error object (default true)
+        includeRetryData        - add retryData property to a returned error object (default true)
 
         args                    - array of arguments [arg1, arg2, arg3] to be passed to fn
-                                    as fn(arg1, arg2, arg3) - default is no arguments
+                                    as fn(arg1, arg2, arg3) - (default - no arguments)
 
         testRejection           - callback function that, if present, is called to test a rejected promise
         testResolve             - callback function that, if present, is called to test a resolved promise
@@ -49,7 +51,7 @@ function DBG(...args) {
                   {action: 'retry'}                   retry (value properties is not used)
 
         The default testRejection() retries any rejection.
-        The default testResolve() stops on any resolved promise.
+        The default testResolve() finishes on any resolved promise.
 
         A typical use case for testResolve() would be if you get timeout responses from an http server
         such as 408 (Request Timeout) or 504 (Gateway Timeout) response from the server and though
