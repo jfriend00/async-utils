@@ -1,5 +1,5 @@
-const { retry, retryify, retryifyAll } = require('./retry.js');
-const { delay, delayErr } = require('./utils.js')
+const { retry, retryify, retryifyAll } = require('../retry.js');
+const { delay, delayErr } = require('../utils.js')
 const assert = require('assert').strict;
 
 function rejectNTimes(n, t = 0) {

@@ -7,7 +7,7 @@ const {
     promisifyObj,
     getPeekIterator,
     getDefaultPeekIterator,
-} = require('./utils.js');
+} = require('../utils.js');
 
 function testPeekIterator() {
     let data = [0,1,2,3,4,5,6,7,8,9];
@@ -70,7 +70,7 @@ fs2.readFilePromise("test.js").then(result => {
 });
 
 
-const { Deferred } = require('./deferred.js');
+const { Deferred } = require('../deferred.js');
 let x = new Deferred();
 x.then(val => {
     console.log('Deferred resolving', val);

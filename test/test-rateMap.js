@@ -1,4 +1,4 @@
-const {rateMap} = require('./rateMap.js');
+const {rateMap} = require('../rateMap.js');
 const http = require('http');
 const fs = require('fs');
 
