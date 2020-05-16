@@ -56,8 +56,6 @@ rmdirRetry('d:\\code\\test\\temp\\commands').then(result => {
 */
 
 const fspr = retryifyAll(fsp, retry.fs);
-assert(fspr === retryifyAll(fsp, retry.fs), 'retryifyAll did not return same object');
-
 
 fspr.rmdir('d:\\code\\test\\temp\\commands').then(result => {
     console.log(result);

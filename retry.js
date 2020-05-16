@@ -223,6 +223,12 @@ retry errorCodes:  ETIMEDOUT ECONNRESET EADDRINUSE ECONNREFUSED EPIPE ENOTFOUND 
         or can be set to any retry function you make with retry.makeNewRetry()
 
     options is which options you want for the retry
+
+    This can be called as:
+      let retryFunction = retryify(fn);
+      let retryFunction = retryify(fn, retryFn);
+      let retryFunction = retryify(fn, options);
+      let retryFunction = retryify(fn, retryFn, options);
 */
 function retryify(fn, retryFn = retry, options = {}) {
     // check which args were passed
@@ -233,7 +239,7 @@ function retryify(fn, retryFn = retry, options = {}) {
     return function(...args) {
         return retryFn(function() {
             return fn(...args);
-        });
+        }, options);
     }
 }
 
@@ -245,23 +251,14 @@ function retryify(fn, retryFn = retry, options = {}) {
     methods to the original object so "this" will be set to the original object
     when they are called.
 */
-const retryifyCache = new WeakMap();
-
 function retryifyAll(obj, retryFn = retry, options = {}) {
-    // see if we already have a cached version of this object so multiple modules
-    // don't keep making new copies
-    let retryObj = retryifyCache.get(obj);
-    if (retryObj) return retryObj;
-
-    retryObj = {};
+    const retryObj = {};
     Object.getOwnPropertyNames(obj).forEach(prop => {
         if (typeof obj[prop] === "function") {
             retryObj[prop] = retryify(obj[prop].bind(obj), retryFn, options);
         }
     });
-    // cache this object
-    retryifyCache.set(obj, retryObj);
     return retryObj;
 }
 
-module.exports = { retry, retryify, retryifyAll, retryifyCache };
+module.exports = { retry, retryify, retryifyAll};
