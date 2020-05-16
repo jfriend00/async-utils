@@ -123,7 +123,8 @@ function promiseRetry(fn, options = {}) {
 
     async function runAgain() {
 
-        function processCallback(testResult, name) {
+        async function processCallback(fn, arg, name) {
+            let testResult = await fn(arg);
             switch(testResult.action) {
                 case "reject":
                     return Promise.reject(testResult.value);
@@ -143,15 +144,13 @@ function promiseRetry(fn, options = {}) {
             } else {
                 val = await fn();
             }
-            let testResult = await testResolve(val);
-            return processCallback(testResult, 'testResolve');
+            return processCallback(testResolve, val, 'testResolve');
         } catch(e) {
             //DBG(`Got rejection with ${e.message}`);
             if (!firstError) {
                 firstError = e;
             }
-            let testResult = await testRejection(e);
-            return processCallback(testResult, 'testRejection');
+            return processCallback(testRejection, e, 'testRejection');
         }
     }
     return runAgain();
