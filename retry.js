@@ -146,7 +146,7 @@ function retry(fn, options = {}) {
         try {
             let val;
             if (functionTimeout) {
-                val = await promiseTimeout(fn(...args), functionTimeout, new Error("function timeout"));
+                val = await timeout(fn(...args), functionTimeout, new Error("function timeout"));
             } else {
                 val = await fn(...args);
             }
@@ -214,7 +214,7 @@ retry errorCodes:  ETIMEDOUT ECONNRESET EADDRINUSE ECONNREFUSED EPIPE ENOTFOUND 
 
 
 /*
-    retryify adds retry behavior to any function
+    retryify adds retry behavior to any function that returns a promise
         returns a new function that has the retry behavior
 
     retryFn is the retry function
