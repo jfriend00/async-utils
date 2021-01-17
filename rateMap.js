@@ -1,4 +1,3 @@
-
 /*
 Derived from my original answer on Stackoverflow:
 https://stackoverflow.com/questions/36730745/choose-proper-async-method-for-batch-processing-for-max-requests-sec/36736593#36736593
@@ -114,18 +113,20 @@ function proxyIterable(iterable) {
         let length = iterable;
         data.isMore = function() {
             return index < length;
-        }
+        };
         data.getNextValue = function() {
             if (data.isMore()) {
                 return index++;
             } else {
                 throw new Error("Went off the end of the proxy iterable");
             }
-        }
+        };
     } else {
         // proxy the iterable so we have a lookahead method call .isMore()
         const iterator = iterable[Symbol.iterator]();
         // three possible states: "ready", "valueCached", "done"
+        // these two variables are the proxy iterables instance data
+        //     accessed via closure
         let state = "ready";
         let nextValue;
         data.isMore = function() {
@@ -141,7 +142,7 @@ function proxyIterable(iterable) {
                 state = "valueCached";
                 return true;
             }
-        }
+        };
         data.getNextValue = function() {
             if (data.isMore()) {
                 state = "ready";
@@ -149,7 +150,7 @@ function proxyIterable(iterable) {
             } else {
                 throw new Error("Went off the end of the iterable");
             }
-        }
+        };
     }
     return data;
 }
@@ -159,6 +160,7 @@ function rateMap(iterable, options, fn) {
         const results = [];
         const data = proxyIterable(iterable);
 
+        /* beautify ignore:start */
         // Assign options to local variables with defaults
         let {
             maxInFlight = 0,
@@ -166,6 +168,7 @@ function rateMap(iterable, options, fn) {
             duration = 0,
             minSpacing = 0
         } = options;
+        /* beautify ignore:end */
 
         if (maxInFlight < 0) {
             throw new Error("maxInFlight cannot be a negative value");
@@ -173,27 +176,32 @@ function rateMap(iterable, options, fn) {
             maxInFlight = Number.MAX_SAFE_INTEGER;
         }
         if (requestsPerDuration && duration <= 0) {
-            throw new Error("If specifying requestsPerDuration, you must specify a positive duration");
+            throw new Error(
+                "If specifying requestsPerDuration, you must specify a positive duration"
+            );
         }
         if (requestsPerDuration === 0) {
             requestsPerDuration = Number.MAX_SAFE_INTEGER;
         }
         if (typeof fn !== "function") {
-            throw new Error("Third parameter must be a callback function that is called for each item in the iterable");
+            throw new Error(
+                "Third argument must be a callback function that is called for each item in the iterable"
+            );
         }
 
+        /* beautify ignore:start */
         let index = 0;              // counter just used for debugging output
         let inFlightCntr = 0;       // how many requests currently in flight
         let doneCntr = 0;           // how many requests have finished
         let cancel = false;         // have we stopped further processing
         let rateTimer = null;       // wait timer in operation
         const launchTimes = [];     // when we launched each request
+        /* beautify ignore:end */
 
         function runMore(reason) {
-
             // see if we have hit this limit and if so, how much more time we have to wait
             function checkLimit(now, numRequests, duration, name) {
-                let result = {name, amount: 0};
+                let result = { name, amount: 0 };
                 if (duration && launchTimes.length >= numRequests) {
                     let delta = now - launchTimes[launchTimes.length - numRequests];
                     if (delta < duration) {
@@ -211,16 +219,23 @@ function rateMap(iterable, options, fn) {
             //   Too many items inFlight already
             // if (debugOn) DBG(`   Begin runMore(${reason})`);
             try {
-                while (!cancel && !rateTimer && data.isMore() && inFlightCntr < maxInFlight) {
+                while (
+                    !cancel &&
+                    !rateTimer &&
+                    data.isMore() &&
+                    inFlightCntr < maxInFlight
+                ) {
                     let now = Date.now();
 
                     // check for various limits on how soon we can send the next request
                     // set timer for the max time that we are limited for (to avoid setting one timer, and then another)
                     const rateLimitAmount = checkLimit(now, requestsPerDuration, duration, "rate limiting");
                     const minSpacingAmount = checkLimit(now, 1, minSpacing, "minSpacing");
-                    const {amount, name} = rateLimitAmount.amount > minSpacingAmount.amount ? rateLimitAmount: minSpacingAmount;
+                    const { amount, name } = rateLimitAmount.amount > minSpacingAmount.amount ?
+                        rateLimitAmount : minSpacingAmount;
                     if (amount) {
-                        if (debugOn) DBG(`      Setting ${name} timer for ${amount} ms from runMore(${reason})`);
+                        if (debugOn)
+                            DBG(`      Setting ${name} timer for ${amount} ms from runMore(${reason})`);
                         rateTimer = setTimeout(() => {
                             rateTimer = null;
                             //console.log(`${time()}: Timer fired, about to runMore()`);
@@ -254,7 +269,7 @@ function rateMap(iterable, options, fn) {
                     DBG("Done");
                     resolve(results);
                 }
-            } catch(e) {
+            } catch (e) {
                 // this could end up here if fn(data.getNextValue()) threw synchronously
                 cancel = true;
                 reject(e);
@@ -272,7 +287,7 @@ function rateMap(iterable, options, fn) {
 */
 
 function mapSeries(iterable, fn) {
-    return rateMap(iterable, {maxInFlight: 1}, fn);
+    return rateMap(iterable, { maxInFlight: 1 }, fn);
 }
 
 /*
@@ -299,7 +314,7 @@ function rateReduce(functionArray, options, seedValue) {
         options = {};
     }
     // make copy of options object and force maxInFlight to 1
-    const opts = Object.assign({}, options, {maxInFlight: 1});
+    const opts = Object.assign({}, options, { maxInFlight: 1 });
     let lastValue = seedValue;
     return rateMap(functionArray, opts, async function(fn) {
         let newValue = await fn(lastValue);
