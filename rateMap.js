@@ -219,12 +219,7 @@ function rateMap(iterable, options, fn) {
             //   Too many items inFlight already
             // if (debugOn) DBG(`   Begin runMore(${reason})`);
             try {
-                while (
-                    !cancel &&
-                    !rateTimer &&
-                    data.isMore() &&
-                    inFlightCntr < maxInFlight
-                ) {
+                while (!cancel && !rateTimer && data.isMore() && inFlightCntr < maxInFlight) {
                     let now = Date.now();
 
                     // check for various limits on how soon we can send the next request
@@ -234,8 +229,9 @@ function rateMap(iterable, options, fn) {
                     const { amount, name } = rateLimitAmount.amount > minSpacingAmount.amount ?
                         rateLimitAmount : minSpacingAmount;
                     if (amount) {
-                        if (debugOn)
+                        if (debugOn) {
                             DBG(`      Setting ${name} timer for ${amount} ms from runMore(${reason})`);
+                        }
                         rateTimer = setTimeout(() => {
                             rateTimer = null;
                             //console.log(`${time()}: Timer fired, about to runMore()`);
