@@ -1,4 +1,4 @@
-const {delay, timeout} = require('./utils');
+const { delay, timeout } = require('./utils');
 
 let startT;
 
@@ -61,6 +61,7 @@ function DBG(...args) {
 */
 
 function retry(fn, options = {}) {
+    /* beautify ignore:start */
     // load options with defaults
     let {
         startInterval = 1000,
@@ -75,6 +76,7 @@ function retry(fn, options = {}) {
         testRejection = (e) => ({action: 'retry'}),                // default is to retry all rejections
         testResolve = (val) => ({action: 'resolve', value: val}),  // default is to resolve
     } = options;
+    /* beautify ignore:end */
 
     let retryCntr = 0;
     let firstError;
@@ -131,7 +133,7 @@ function retry(fn, options = {}) {
 
         async function processCallback(fn, arg, name) {
             let testResult = await fn(arg);
-            switch(testResult.action) {
+            switch (testResult.action) {
                 case "reject":
                     return Promise.reject(testResult.value);
                 case "resolve":
@@ -151,7 +153,7 @@ function retry(fn, options = {}) {
                 val = await fn(...args);
             }
             return processCallback(testResolve, val, 'testResolve');
-        } catch(e) {
+        } catch (e) {
             //DBG(`Got rejection with ${e.message}`);
             if (!firstError) {
                 firstError = e;
@@ -191,13 +193,13 @@ retry.makeNewRetry = function(defaults) {
 const fsRetryCodes = new Set(['EBUSY', 'EMFILE', 'ENFILE', 'ENOTEMPTY', 'EPERM']);
 
 retry.fs = function(fn, options = {}) {
-    let opts = Object.assign({startInterval: 50, maxTries: 5}, options);
+    let opts = Object.assign({ startInterval: 50, maxTries: 5 }, options);
     // forcefully override the testRejection option
     opts.testRejection = function(e) {
         if (e.code && fsRetryCodes.has(e.code)) {
-            return {action: 'retry'};
+            return { action: 'retry' };
         } else {
-            return {action: 'reject', value: e};
+            return { action: 'reject', value: e };
         }
     }
     return retry(fn, opts);
@@ -261,4 +263,4 @@ function retryifyAll(obj, retryFn = retry, options = {}) {
     return retryObj;
 }
 
-module.exports = { retry, retryify, retryifyAll};
+module.exports = { retry, retryify, retryifyAll };
