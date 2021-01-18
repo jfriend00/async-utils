@@ -190,7 +190,7 @@ function rateMap(iterable, options, fn) {
         }
 
         /* beautify ignore:start */
-        let index = 0;              // counter just used for debugging output
+        let debugOutputIndex = 0;   // counter just used for debugging output
         let inFlightCntr = 0;       // how many requests currently in flight
         let doneCntr = 0;           // how many requests have finished
         let cancel = false;         // have we stopped further processing
@@ -240,7 +240,7 @@ function rateMap(iterable, options, fn) {
                         break;
                     }
 
-                    let i = index++;
+                    let i = debugOutputIndex++;
                     ++inFlightCntr;
                     if (debugOn) DBG(`Launching request ${i + 1} - (${inFlightCntr}), runMore(${reason})`);
                     launchTimes.push(Date.now());
@@ -287,6 +287,12 @@ function mapSeries(iterable, fn) {
 }
 
 /*
+    Call a series of functions sequentially, passing the result of one to the next.
+    The result of the final one is the resolved result of the whole operation.  It's
+    like an async version of reduce, but it also supports all the options of rateMap()
+    for doing rate limiting, except maxInFlight since these are forced to be
+    sequential.
+
     Pass:
         functionArray
             an array of functions to be called sequentially
