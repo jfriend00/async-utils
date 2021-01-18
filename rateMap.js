@@ -190,12 +190,13 @@ function rateMap(iterable, options, fn) {
         }
 
         /* beautify ignore:start */
-        let debugOutputIndex = 0;   // counter just used for debugging output
-        let inFlightCntr = 0;       // how many requests currently in flight
-        let doneCntr = 0;           // how many requests have finished
-        let cancel = false;         // have we stopped further processing
-        let rateTimer = null;       // wait timer in operation
-        const launchTimes = [];     // when we launched each request
+        // this is the state of the state-machine here during a session
+        let debugOutputIndex = 0;
+        let inFlightCntr = 0;       // how many requests are currently in flight
+        let doneCntr = 0;           // how many requests have finished so far
+        let cancel = false;         // keep track of whether further processing has been cancelled
+        let rateTimer = null;       // wait timer currently running before we can run another request
+        const launchTimes = [];     // when we launched each request used for rate calculations
         /* beautify ignore:end */
 
         function runMore(reason) {
@@ -213,8 +214,7 @@ function rateMap(iterable, options, fn) {
 
             // Conditions for not running more requests:
             //   cancel flag is set
-            //   rateLimitTimer is running (we're actively rate limited until that timer fires)
-            //   spacingTimer is running (too soon after the last request)
+            //   rateTimer is running (we're actively rate limited or spacing limited until that timer fires)
             //   No more items in the array to process
             //   Too many items inFlight already
             // if (debugOn) DBG(`   Begin runMore(${reason})`);
